@@ -22,6 +22,9 @@ import (
 	"github.com/wfighter1/terminalX/internal/webdist"
 )
 
+// version is stamped by the build (-ldflags "-X main.version=v0.1.0").
+var version = "dev"
+
 func main() {
 	if err := run(); err != nil {
 		slog.Error("tx-relay exited", "err", err)
@@ -105,7 +108,7 @@ func run() error {
 
 	errc := make(chan error, 1)
 	go func() {
-		logger.Info("tx-relay listening", "addr", *listen, "data", *dataDir, "public_url", *publicURL)
+		logger.Info("tx-relay listening", "version", version, "addr", *listen, "data", *dataDir, "public_url", *publicURL)
 		if err := hs.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errc <- err
 		}

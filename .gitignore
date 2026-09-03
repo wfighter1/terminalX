@@ -1,5 +1,8 @@
 node_modules/
-dist/
+web/dist/
+# 内置控制台：只提交占位 index.html，真实构建产物由 scripts/build.sh / Dockerfile 生成
+internal/webdist/dist/*
+!internal/webdist/dist/index.html
 build/
 bin/
 data/

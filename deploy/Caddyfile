@@ -1,0 +1,47 @@
+# terminalX relay 反代示例。
+# Caddy 会用 Let's Encrypt / ZeroSSL 自动签发并续期 {$TX_DOMAIN} 的证书，
+# 前提是 80/443 对公网可达且域名已解析到本机。
+
+{
+	# 证书通知邮箱（可选）
+	email {$TX_ACME_EMAIL}
+}
+
+{$TX_DOMAIN} {
+	encode zstd gzip
+
+	# 安全头。CSP 未启用：控制台走 xterm.js + WebGL，需要 unsafe-inline 样式；
+	# 1.1 版随 SRI / 可复现构建一起补上。
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+		-Server
+	}
+
+	# WebSocket 与 API 都直接反代给 relay；Caddy 自动处理 Upgrade，
+	# 并把真实客户端 IP 放进 X-Forwarded-For（relay 的登录 / 配对锁定按它计数）。
+	reverse_proxy relay:8080 {
+		# 长连接：终端 WebSocket 可能几小时没有 HTTP 层活动
+		transport http {
+			read_timeout 0
+			write_timeout 0
+			dial_timeout 10s
+		}
+		# 让 relay 通过 X-Forwarded-Proto 判断 https，从而给 cookie 加 Secure
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
+
+# ---------------------------------------------------------------------------
+# 备选：已有 Nginx / 其它反代？只需保证以下三点：
+#   1. /ws/agent 与 /ws/client 允许 WebSocket Upgrade，且关闭读写空闲超时
+#   2. 透传 X-Forwarded-For 与 X-Forwarded-Proto
+#   3. 请求体限制 ≥ 1 MiB（API 请求体上限 1 MiB）
+# ---------------------------------------------------------------------------

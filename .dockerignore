@@ -1,0 +1,11 @@
+# Keep the Docker build context small (deploy/Dockerfile.relay builds from the repo root).
+.git
+bin/
+data/
+deploy/data/
+deploy/.env
+web/node_modules/
+web/dist/
+docs/
+scripts/e2e.mjs
+*.log

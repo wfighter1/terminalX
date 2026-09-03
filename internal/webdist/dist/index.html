@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>terminalX</title>
+<style>body{font-family:system-ui,sans-serif;margin:3rem auto;max-width:40rem;line-height:1.6;color:#222}code{background:#f2f2f2;padding:.1em .3em;border-radius:3px}</style>
+</head>
+<body>
+<h1>terminalX relay</h1>
+<p>中转已在运行，但这个二进制没有内置 Web 控制台（这是占位页）。</p>
+<p>构建控制台：在 <code>web/</code> 里运行 <code>npm ci &amp;&amp; npm run build</code>，把 <code>web/dist</code> 复制到 <code>internal/webdist/dist</code> 后重新编译；或者启动时传 <code>--web-dir web/dist</code>。</p>
+<p>健康检查：<a href="/healthz">/healthz</a></p>
+</body>
+</html>

@@ -164,8 +164,12 @@ func (s *Server) handlePairRedeem(w http.ResponseWriter, r *http.Request) {
 	now := s.now()
 	fail := func(reason string) {
 		_ = s.store.IncPairAttempts(r.Context(), code)
-		if s.limiter.fail(ipKey) || s.limiter.fail(codeKey) {
-			s.log.Warn("pairing locked out", "ip", ip)
+		// count against both keys (no short-circuit: the per-code lock must
+		// advance even when the IP just got locked)
+		ipLocked := s.limiter.fail(ipKey)
+		codeLocked := s.limiter.fail(codeKey)
+		if ipLocked || codeLocked {
+			s.log.Warn("pairing locked out", "ip", ip, "ip_locked", ipLocked, "code_locked", codeLocked)
 		}
 		s.audit("anon:"+ip, "", 0, "pair.failed", reason)
 		writeError(w, http.StatusBadRequest, "invalid or expired pairing code")

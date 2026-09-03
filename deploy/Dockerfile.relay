@@ -1,0 +1,48 @@
+# terminalX relay (tx-relay) — multi-stage build.
+#
+#   stage 1  node   : build the web console (web/ → web/dist)
+#   stage 2  golang : embed web/dist into internal/webdist/dist and build a
+#                     static tx-relay binary (modernc.org/sqlite is pure Go,
+#                     so CGO is off)
+#   stage 3  alpine : tiny runtime image with tzdata / ca-certificates
+#
+# Build from the repository root (the compose file already does):
+#   docker build -f deploy/Dockerfile.relay -t terminalx/relay .
+
+# ---- stage 1: web console -------------------------------------------------
+FROM node:22-alpine AS web
+WORKDIR /src/web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY web/ ./
+RUN npm run build
+
+# ---- stage 2: relay binary ------------------------------------------------
+FROM golang:1.27-alpine AS build
+WORKDIR /src
+ENV CGO_ENABLED=0 GOFLAGS=-mod=mod GOTOOLCHAIN=auto
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+# replace the placeholder console with the real build output
+RUN rm -rf internal/webdist/dist && mkdir -p internal/webdist/dist
+COPY --from=web /src/web/dist/ internal/webdist/dist/
+ARG VERSION=dev
+RUN go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/tx-relay ./cmd/tx-relay
+
+# ---- stage 3: runtime -------------------------------------------------------
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates tzdata \
+ && addgroup -S tx && adduser -S -G tx -h /data tx \
+ && mkdir -p /data && chown tx:tx /data
+COPY --from=build /out/tx-relay /usr/local/bin/tx-relay
+USER tx
+WORKDIR /data
+VOLUME ["/data"]
+EXPOSE 8080
+ENV TX_LISTEN=:8080 \
+    TX_DATA=/data \
+    TX_LOG_LEVEL=info
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
+  CMD wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1
+ENTRYPOINT ["/usr/local/bin/tx-relay"]

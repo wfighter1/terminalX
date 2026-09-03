@@ -1,0 +1,63 @@
+# terminalX 自建中转：relay + Caddy（自动 HTTPS 反代）
+#
+#   cp .env.example .env && 编辑 TX_DOMAIN / TX_ADMIN_PASSWORD
+#   docker compose up -d --build
+#
+# 只有 Caddy 对外暴露 80/443；relay 只在 compose 内网监听 8080。
+# 元数据（配对设备、审批、审计）全部在 ./data，备份这个目录即可。
+
+services:
+  relay:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.relay
+      args:
+        VERSION: ${TX_VERSION:-dev}
+    image: terminalx/relay:${TX_VERSION:-dev}
+    container_name: tx-relay
+    restart: unless-stopped
+    environment:
+      TX_ADMIN_PASSWORD: ${TX_ADMIN_PASSWORD:?set TX_ADMIN_PASSWORD in .env}
+      TX_PUBLIC_URL: https://${TX_DOMAIN:?set TX_DOMAIN in .env}
+      TX_LISTEN: ":8080"
+      TX_DATA: /data
+      TX_LOG_LEVEL: ${TX_LOG_LEVEL:-info}
+      # 额外允许的 /ws/client 来源（开发时用，例如 localhost:5173）；生产留空
+      TX_ALLOW_ORIGIN: ${TX_ALLOW_ORIGIN:-}
+    volumes:
+      - ./data:/data
+    expose:
+      - "8080"
+    networks: [tx]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: tx-caddy
+    restart: unless-stopped
+    depends_on: [relay]
+    environment:
+      TX_DOMAIN: ${TX_DOMAIN:?set TX_DOMAIN in .env}
+      # 证书到期 / 签发失败通知邮箱（可留空）
+      TX_ACME_EMAIL: ${TX_ACME_EMAIL:-}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [tx]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+networks:
+  tx: {}
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}
