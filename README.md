@@ -32,6 +32,7 @@ terminalX 只做一件事：**只传字节与事件，不传像素。** 一个 W
 |---|---|---|
 | 官方 Claude Code Remote Control / Codex Remote | 中转 Key / Bedrock / 网关也能远程；一个面板管多家工具；真终端与远程 Esc | **Mac + 订阅 + 能直连官方 + 只用一家工具：请直接用官方** |
 | Happier / Paseo / Happy | Windows 被控端保活与重启自动拉回、国内一条命令中转、免包装器附着、远程 ≤ 本地 | 你主要在 macOS / Linux |
+| VibeAround（国内，Windows x64） | 自建中转与审批收件箱 | 你更需要 IM 渠道数量 |
 | Tailscale + WSL2/tmux 或 Zellij / psmux + Termius | 只有三样：Windows 常驻保活与重启自动拉回、免包装器跨工具收件箱、一条命令国内中转 | 你已经配好且不嫌烦 |
 | ToDesk / 向日葵 / RDP | 文本不糊、KB/s 带宽、不用解锁屏幕、有「谁在等我」 | 你需要看 GUI |
 

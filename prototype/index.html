@@ -401,7 +401,7 @@
   .app-term .ro { font-size: 10px; color: #8A96A6; padding: 0 6px; border: 1px solid #2A3340; border-radius: 4px; }
   .app-term .term { min-height: 0; max-height: none; font-size: 11.5px; line-height: 17px; padding: 10px 12px; white-space: pre-wrap; word-break: break-all; }
   .app-keys { display: grid; gap: 6px; padding: 8px 10px 12px; background: #151A21; border-top: 1px solid #222A34; }
-  .app-keys .row { display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr 1fr 1fr; gap: 6px; }
+  .app-keys .row { display: grid; grid-template-columns: 1.4fr 1.4fr 1fr 1fr 1fr 1fr 1fr 1fr; gap: 5px; }
   .app-keys .key { padding: 8px 0; text-align: center; min-width: 0; background: #1B222B; border-color: #2A3340; color: #C9D1DC; }
   .app-keys .key.y { background: var(--ok-soft); color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
   .app-keys .key.n { background: var(--err-soft); color: var(--err); border-color: color-mix(in srgb, var(--err) 40%, transparent); }
@@ -473,7 +473,7 @@
     <button class="proto-tab" role="tab" aria-selected="false" data-screen="pair">配对流程</button>
     <button class="proto-tab" role="tab" aria-selected="false" data-screen="arch">架构与范围</button>
   </div>
-  <p class="proto-scene">示例场景：<strong>周三 11:03</strong>，你在通勤路上，两台 Windows 上共 6 个会话。数据均为示例；细节以设计文档为准。</p>
+  <p class="proto-scene">示例场景：<strong>周四 11:03</strong>，你在通勤路上，两台 Windows 上共 6 个会话。数据均为示例；细节以设计文档为准。</p>
 </nav>
 
 <main>
@@ -578,8 +578,8 @@
         <div class="card-head">三种卡片，三种动作</div>
         <ul class="policy">
           <li><span class="tag a">hook 决定</span><span>该会话开启了「远程优先」：Claude Code 的 PermissionRequest hook 挂起等你，你点「允许」就是 hook 的决定。代价：挂起期间终端里的对话框不显示，最长 60 分钟后回落。</span></li>
-          <li><span class="tag b">按键</span><span>默认「通知模式」：hook 只登记并推送，终端里的对话框照常弹出。你在这里点的是「发送 y ⏎」，等同于坐在电脑前按键。Codex 第一阶段只走这条路。</span></li>
-          <li><span class="tag c">疑似</span><span>没有 hooks 的工具（如 Grok Build）靠输出停顿加末行 <code>(y/N)</code> 推断，低置信。只提示，不自动处理，也不替你按键。</span></li>
+          <li><span class="tag b">按键</span><span>默认「通知模式」：hook 只登记并推送，终端里的对话框照常弹出。你在这里点的是「发送 1 ⏎ / 发送 3 ⏎」，等同于坐在电脑前按键。Codex 第一阶段只走这条路。</span></li>
+          <li><span class="tag c">疑似</span><span>没有 hooks 的工具（如 Grok Build）靠输出停顿加末行 <code>(y/N)</code> 推断，低置信。只提示，不自动处理，也不替你按键；卡片只有「打开终端确认」一个按钮。</span></li>
           <li><span class="tag n">规则</span><span>远程权限不高于本地：以 <code>bypassPermissions</code> 启动的会话根本不会触发 hook，因此不会出现在这里。本机答过的请求会在 2 秒内自动关闭。</span></li>
         </ul>
         <div class="card-head">今日</div>
@@ -606,7 +606,7 @@
           <div class="lock">
             <div>
               <div class="time">11:03</div>
-              <div class="date">9月3日 星期三</div>
+              <div class="date">9月3日 星期四</div>
             </div>
             <div id="phone-notifs"></div>
           </div>
@@ -621,7 +621,7 @@
           <div class="app" id="phone-app"></div>
           <div class="home-bar"></div>
         </div>
-        <p>会话列表按「等你」置顶。会话内是只读终端 + 大按键（y / n / Esc / 方向键 / Tab）+ 独立输入框。重度打字请用电脑，或用 Termius 之类的 SSH 客户端。</p>
+        <p>会话列表按「等你」置顶。会话内是只读终端 + 大按键（y / n / Esc / Ctrl-C / 方向键 / Tab / Enter）+ 独立输入框。重度打字请用电脑，或用 Termius 之类的 SSH 客户端。</p>
       </div>
     </div>
   </section>
@@ -649,7 +649,7 @@
       <div class="card step">
         <div class="step-head"><span class="step-no">2</span><h3>输入配对码或扫码</h3><small>5 分钟内有效</small></div>
         <div class="step-body">
-          <p>安装完成后被控端会提示输入配对码。在这里输入，或用手机扫码。然后核对两端显示的同一个指纹短码。</p>
+          <p>安装完成后被控端向导会提示输入这个配对码（也可用 <code>install.ps1 -Code</code> 直接带上）。二维码用于手机扫码登录控制台。然后核对两端显示的同一个指纹短码。</p>
           <div class="paircode">
             <div class="qr" id="qr" aria-label="配对二维码（示例）"></div>
             <div>
@@ -662,7 +662,7 @@
             <div><small>被控端显示</small><b>A7K3-9QZP</b></div>
           </div>
           <ul class="trust">
-            <li>二维码携带一次性密钥和中转指纹，只从你的手机到被控端，不经中转明文。</li>
+            <li>配对码本身就是密钥协商的输入，不经中转明文；二维码只用于手机端登录，不参与被控端配对。</li>
             <li>配对时双方交换公钥并各自保存对方指纹。第一阶段流量走 TLS 到自建中转；帧格式已按不透明字节设计，逐帧端到端加密在 1.1 实装，届时校验失败即断、不降级明文。</li>
           </ul>
         </div>
@@ -762,7 +762,7 @@
           <li>Claude Code：<code>--settings</code> 注入 http hooks（不改你的 settings.json），默认通知模式，每会话可开远程优先；statusLine 只采费用与上下文两个数</li>
           <li>Codex：hooks.json / notify 登记 → 收件箱 + 打开终端 + 键条</li>
           <li>Grok Build：终端 + hooks 尽力（事件名待核实），否则疑似状态</li>
-          <li>MiniMax：供应商预设，让 Claude Code / Codex / OpenCode 走 MiniMax 端点，环境变量在被控端注入</li>
+          <li>MiniMax：供应商预设，让 Claude Code / Codex 走 MiniMax 端点，环境变量在被控端注入</li>
           <li>手机 PWA：只读终端 + 键条 + 独立输入框；通用 webhook 通知（飞书 / 企微 / Bark / ntfy）</li>
           <li>安全默认值：只出站、回环 hooks、远程默认关闭、显式配对与指纹比对、Passkey / TOTP、吊销、暂停总开关、远程 ≤ 本地</li>
         </ul>
@@ -775,7 +775,7 @@
           <li>Windows 服务化 <small>长期约束，见左侧说明</small></li>
           <li>Codex 一键审批（app-server）<small>1.1 试验</small></li>
           <li>成本面板与额度环、额度耗尽自动续跑 <small>1.1 仅 Claude；续跑对 API Key 无意义</small></li>
-          <li>只读分享链接、录制回放、审计页 <small>1.1 / 2</small></li>
+          <li>只读分享链接、录制回放、审计页 <small>1.1 / 2 / 3</small></li>
           <li>多机聚合告警与用量、macOS / Linux 被控端 <small>第二阶段</small></li>
           <li>原生 App、Web Push、手机传图到被控端 <small>1.1 / 2</small></li>
           <li>ACP 接入其余工具、团队权限与 SSO、跨机器接续 <small>1.2 / 3 / 不承诺</small></li>
@@ -814,7 +814,7 @@
 
   const TOOL_LABEL = { claude: 'Claude Code', codex: 'Codex CLI', grok: 'Grok Build', shell: 'PowerShell' };
   const TOOL_SHORT = { claude: 'CC', codex: 'CX', grok: 'GK', shell: 'PS' };
-  const STATE_LABEL = { running: '运行中', waiting: '等待确认', suspect: '疑似等待', idle: '空闲', error: '出错', unknown: '未知', offline: '离线' };
+  const STATE_LABEL = { running: '运行中', waiting: '等待确认', suspect: '疑似等待', idle: '空闲', error: '出错', unknown: '未知', exited: '已退出' };
   const LEVEL = { A: { cls: 'a', label: 'hook 决定' }, B: { cls: 'b', label: '按键' }, C: { cls: 'c', label: '疑似' } };
 
   const L = {
@@ -826,7 +826,7 @@
   const devices = [
     { id: 'office', name: '办公室 PC', os: 'Windows 11 Pro', icon: OS_WIN, online: true, agent: 'v0.1.0', rtt: 32, hb: '3 秒前' },
     { id: 'home', name: '家里台式机', os: 'Windows 11', icon: OS_WIN, online: true, agent: 'v0.1.0', rtt: 58, hb: '5 秒前' },
-    { id: 'mbp', name: 'MacBook Pro', os: 'macOS · 第二阶段', icon: OS_MAC, online: false, lastSeen: '昨天 23:12' },
+    { id: 'mbp', name: 'MacBook Pro', os: 'macOS 被控端 · 第二阶段占位', icon: OS_MAC, online: false },
   ];
 
   const sessions = [
@@ -904,7 +904,7 @@
     },
     {
       id: 's3', device: 'office', tool: 'grok', title: 'docs-site · 修复 CI 构建', cwd: 'D:\\work\\docs-site', branch: 'main',
-      provider: 'xAI', model: 'grok-4', permMode: '—', approvalMode: 'none', source: 'PTY 探测（低置信）', attach: '已附着（用户自起）',
+      provider: 'xAI', model: 'grok-4', permMode: '—', approvalMode: 'none', source: 'PTY 探测（低置信）', attach: 'terminalX 拉起',
       state: 'suspect', started: '10:20', elapsed: '00:43', cost: '—', ctx: '—', lastOut: '12 分钟前',
       pending: { level: 'C', kind: 'question', label: '疑似在等你', cmd: '用 pnpm 替代 npm 重新安装依赖吗？ (y/N)', why: '输出 12 分钟无变化，末行匹配 (y/N)。Grok Build 的 hooks 事件名待核实，第一阶段只做提示', since: '12 分钟' },
       lines: [
@@ -923,7 +923,7 @@
         `<span class="c-w">grok</span> <span class="c-d">›</span> <span class="cursor"></span>`,
       ],
       events: [
-        { t: '10:20', s: '发现用户自起的 grok 进程，已附着' },
+        { t: '10:20', s: '会话启动 · grok-4（无 hooks，PTY 探测）' },
         { t: '10:31', s: '读取 CI 失败日志' },
         { t: '10:51', s: '输出停止；末行匹配 (y/N) → 疑似等待', hot: true },
       ],
@@ -949,7 +949,7 @@
     {
       id: 's5', device: 'home', tool: 'claude', title: 'data-pipeline · ETL 分块提交', cwd: 'C:\\dev\\data-pipeline', branch: 'refactor/chunked-load',
       provider: 'MiniMax 预设（Coding Plan 端点）', model: 'MiniMax-M2.5', permMode: 'acceptEdits', approvalMode: 'notify', source: 'hooks（高置信）', attach: 'terminalX 拉起',
-      state: 'waiting', started: '10:05', elapsed: '00:58', cost: '¥1.10（估算）', ctx: '63%', lastOut: '6 分钟前',
+      state: 'waiting', started: '10:05', elapsed: '00:58', cost: '$0.16（估算，牌价）', ctx: '63%', lastOut: '6 分钟前',
       pending: { level: 'B', kind: 'bash', label: '执行命令', cmd: 'python -m pytest tests/test_load.py', why: '通知模式：终端里的对话框已弹出，等你按键；acceptEdits 下写文件不再询问，只有命令会问', since: '6 分钟' },
       lines: [
         L.cmdline('C:\\dev\\data-pipeline', 'claude'),
@@ -1036,7 +1036,7 @@
   function renderDevices() {
     $('#devices').innerHTML = devices.map(d => {
       const ss = sessions.filter(s => s.device === d.id);
-      const meta = d.online ? `${d.os} · 心跳 ${d.hb} · <span class="num">${d.rtt} ms</span>` : `${d.os} · 最后在线 ${d.lastSeen}`;
+      const meta = d.online ? `${d.os} · 心跳 ${d.hb} · <span class="num">${d.rtt} ms</span>` : esc(d.os);
       return `<div class="device">
         <div class="device-head">
           <span class="os">${d.icon}</span>
@@ -1048,7 +1048,7 @@
             <span class="tool ${s.tool}">${TOOL_SHORT[s.tool]}</span>
             <span><span class="name">${esc(s.title)}</span><span class="sub">${TOOL_LABEL[s.tool]} · ${esc(s.model)}</span></span>
             <span class="pill ${s.state}">${STATE_LABEL[s.state]}</span>
-          </button>`).join('') : `<div class="inbox-empty" style="padding:6px 8px 10px;text-align:left">被控端离线。上线后会话列表自动恢复。</div>`}
+          </button>`).join('') : `<div class="inbox-empty" style="padding:6px 8px 10px;text-align:left">第一阶段只有 Windows 被控端。</div>`}
         </div>
       </div>`;
     }).join('');
@@ -1072,7 +1072,7 @@
       <span class="unstick" aria-label="远程解卡">
         <button class="btn sm" data-key="Esc">Esc</button>
         <button class="btn sm" data-unstick="ctrlc">Ctrl-C</button>
-        <button class="btn sm" data-unstick="restart">重启会话</button>
+        <button class="btn sm" data-unstick="restart">kill &amp; resume</button>
       </span>`;
     const term = $('#term');
     term.innerHTML = s.lines.map((l, i) => `<span class="ln${animateFrom != null && i >= animateFrom ? ' enter' : ''}">${l || '&nbsp;'}</span>`).join('');
@@ -1085,7 +1085,7 @@
     const sm = size ? ' sm' : '';
     if (p.level === 'A') return `<button class="btn ok${sm}" data-approve="${s.id}">允许</button><button class="btn danger${sm}" data-deny="${s.id}">拒绝</button>`;
     if (p.level === 'B') return `<button class="btn ok${sm}" data-approve="${s.id}">发送 1 ⏎</button><button class="btn danger${sm}" data-deny="${s.id}">发送 3 ⏎</button><button class="btn${sm}" data-open="${s.id}">打开终端</button>`;
-    return `<button class="btn${sm}" data-open="${s.id}">打开终端确认</button><button class="btn ok${sm}" data-approve="${s.id}">发送 y ⏎</button>`;
+    return `<button class="btn${sm}" data-open="${s.id}">打开终端确认</button>`;
   }
 
   function modeText(s) {
@@ -1136,7 +1136,7 @@
       <dt>用量</dt><dd class="num mono">${esc(s.cost)}<span style="color:var(--muted)"> · 上下文 ${esc(s.ctx)}</span></dd>`;
     $('#side-actions').innerHTML = `
       <button class="btn sm" data-unstick="restart">kill &amp; resume</button>
-      <button class="btn sm" id="btn-share" title="1.1">只读分享 <span class="tag n">1.1</span></button>
+      <button class="btn sm" id="btn-share" disabled title="1.1 规划">只读分享 <span class="tag n">1.1</span></button>
       <button class="btn sm danger" id="btn-kill">结束会话</button>`;
     $('#events').innerHTML = s.events.map(e => `<div class="ev${e.hot ? ' hot' : ''}${e.ok ? ' ok' : ''}"><time>${e.t}</time><span>${esc(e.s)}</span></div>`).join('');
   }
@@ -1207,7 +1207,7 @@
             <div class="row">
               <button class="key y" data-approve="${s.id}" ${s.pending ? '' : 'disabled'}>${s.pending && s.pending.level === 'A' ? '允许' : 'y / 1'}</button>
               <button class="key n" data-deny="${s.id}" ${s.pending ? '' : 'disabled'}>${s.pending && s.pending.level === 'A' ? '拒绝' : 'n / 3'}</button>
-              <button class="key" data-key="Esc">Esc</button><button class="key" data-key="Up">↑</button><button class="key" data-key="Down">↓</button><button class="key" data-key="Tab">Tab</button>
+              <button class="key" data-key="Esc">Esc</button><button class="key" data-unstick="ctrlc">^C</button><button class="key" data-key="Up">↑</button><button class="key" data-key="Down">↓</button><button class="key" data-key="Tab">Tab</button><button class="key" data-key="Enter">⏎</button>
             </div>
             <div class="compose"><input type="text" placeholder="整行发送给 ${TOOL_LABEL[s.tool]}…" aria-label="手机端输入"><button class="btn primary sm">发送</button></div>
             <div class="tip">输入框走 composer，不往终端里直接打字</div>
@@ -1267,6 +1267,7 @@
     } else {
       s.state = 'idle';
       if (p.level === 'A') s.lines.push(`  <span class="c-d">⎿ [terminalX 11:03] 远程决定：deny</span>`);
+      else if (s.tool === 'grok' || s.tool === 'shell') s.lines.push(`n <span class="c-d">[terminalX 11:03 从手机 / Web 按键]</span>`);
       else s.lines.push(`  <span class="c-d">›</span> 3 <span class="c-d">[terminalX 11:03 从手机 / Web 按键]</span>`);
       s.lines.push(`  <span class="c-d">⎿</span> <span class="c-r">已拒绝</span>。等待你的下一条指令。`);
       s.lines.push(`<span class="c-w">&gt;</span> <span class="cursor"></span>`);
@@ -1305,7 +1306,7 @@
     const s = byId(id);
     s.approvalMode = s.approvalMode === 'remote' ? 'notify' : 'remote';
     if (s.pending) s.pending.level = s.approvalMode === 'remote' ? 'A' : 'B';
-    toast(s.approvalMode === 'remote' ? '已开启远程优先：下一次审批会挂起等你，终端内对话框暂不显示' : '已切回通知模式：终端内对话框照常，这里只发按键');
+    toast(s.approvalMode === 'remote' ? '已开启远程优先（需 Passkey 重认证，10 分钟内免）：下一次审批会挂起等你，终端内对话框暂不显示' : '已切回通知模式：终端内对话框照常，这里只发按键');
     renderAll();
   }
 
