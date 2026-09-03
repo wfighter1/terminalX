@@ -412,7 +412,8 @@ func (s *Server) onApprovalNew(a *agentConn, m proto.Msg) {
 	}
 	var deviceName, sessionName string
 	s.mu.Lock()
-	s.approvals[ap.Key] = &ap
+	cached := ap // the cache owns its own copy; ap is read below without the lock
+	s.approvals[ap.Key] = &cached
 	if d := s.devices[a.deviceID]; d != nil {
 		deviceName = d.info.Name
 		if si := d.sessions[ap.SID]; si != nil {
@@ -469,8 +470,11 @@ func (s *Server) onApprovalClosed(a *agentConn, m proto.Msg) {
 }
 
 // routeAgentFrame delivers a data frame from an agent to attached clients.
-// Snapshot frames only reach clients with a pending attach; Output / EOF
-// reach every attached client. Returns false on a malformed frame.
+// Snapshot frames only reach clients with a pending attach; Output frames
+// only reach clients whose attach is complete (the agent computes the
+// replay with output delivery paused, so a pending client would otherwise
+// see bytes twice: once live and once inside the snapshot); EOF reaches
+// every attached client. Returns false on a malformed frame.
 func (s *Server) routeAgentFrame(a *agentConn, data []byte) bool {
 	t, sid, err := proto.PeekHeader(data)
 	if err != nil {
@@ -490,12 +494,17 @@ func (s *Server) routeAgentFrame(a *agentConn, data []byte) bool {
 		if c == nil {
 			continue
 		}
-		if t == proto.FrameSnapshot {
+		switch t {
+		case proto.FrameSnapshot:
 			if !pending {
 				continue
 			}
 			if flags&proto.FlagMore == 0 {
 				atts[cid] = false
+			}
+		case proto.FrameOutput:
+			if pending {
+				continue
 			}
 		}
 		targets = append(targets, c)

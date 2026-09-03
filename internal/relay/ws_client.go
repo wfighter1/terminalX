@@ -253,7 +253,7 @@ func (s *Server) handleClientMsg(c *clientConn, m proto.Msg) {
 		}
 
 	case proto.TApprovalDecide:
-		if err := s.decideApproval(m.Key, m.Decision, actor, m.DeviceID, m.ReqID); err != nil {
+		if err := s.decideApproval(m.Key, m.Decision, actor, m.DeviceID, m.ReqID, c.id); err != nil {
 			c.sendError(m.ReqID, m.DeviceID, m.SID, err.Error())
 			return
 		}

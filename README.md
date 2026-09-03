@@ -2,7 +2,7 @@
 
 **你自己部署的 AI 代理监工台。** Windows 上的 Claude Code / Codex / Grok Build（MiniMax 作为供应商预设）会话常驻不掉线，手机上一屏看清谁在等你、一键处理，任何 API 配置都能远程。
 
-> 状态：设计定稿，第一阶段实现进行中（2026-09）。已有：协议层、中转 tx-relay、Web 控制台、被控端 tx-agent 骨架、端到端冒烟测试脚本；尚未：Windows 真机验证、代码签名、发布版本。代码目录结构见 [架构文档 §7](docs/04-第一阶段技术架构.md)。
+> 状态：设计定稿，第一阶段实现进行中（2026-09）。已有：协议层、中转 tx-relay（含测试与 Docker 部署）、被控端 tx-agent（PTY 会话常驻、断线补差、hooks 端点、配对、登录自启安装）、Web 控制台；三者在 Linux 上已跑通端到端冒烟测试（配对 → 上线 → 开会话 → 输入回显 → 刷新后快照回放 → 关闭），Windows 目标已交叉编译通过。尚未：Windows 真机验证、supervisor / ptyhost 双进程、代码签名、发布版本。代码目录结构见 [架构文档 §7](docs/04-第一阶段技术架构.md)，部署见 [deploy/README.md](deploy/README.md)。
 
 ## 结论先行
 

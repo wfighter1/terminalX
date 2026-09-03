@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"net/http"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -879,6 +881,106 @@ func TestWebhookSetting(t *testing.T) {
 				if g := e.do(http.MethodGet, "/api/settings/webhook", nil, cookie); g.str("url") != tc.url {
 					t.Fatalf("get: %v", g.body)
 				}
+			}
+		})
+	}
+}
+
+// TestPendingAttachSkipsOutput: output produced between a client's attach
+// and the agent's replay must not reach that client (the replay already
+// contains it), while clients whose attach is complete keep receiving it.
+func TestPendingAttachSkipsOutput(t *testing.T) {
+	e := newTestEnv(t)
+	cookie := e.login()
+	dev := e.pairDevice(cookie, "pc")
+	a := e.connectAgent(dev)
+	a.hello(sessionInfo(1, "s"))
+	c1, _, _, _ := e.connectClient(cookie)
+	c2, _, _, _ := e.connectClient(cookie)
+
+	c1.attach(a, 1, "a1")
+	a.sendFrame(proto.Frame{Type: proto.FrameSnapshot, Flags: proto.FlagReset, SID: 1, Seq: 10, Payload: []byte("screen")})
+	if f := c1.nextFrame(); f.Type != proto.FrameSnapshot || string(f.Payload) != "screen" {
+		t.Fatalf("c1 snapshot: %+v", f)
+	}
+
+	c2.attach(a, 1, "a2") // pending until its snapshot arrives
+	a.sendFrame(proto.Frame{Type: proto.FrameOutput, SID: 1, Seq: 10, Payload: []byte("live")})
+	a.sendFrame(proto.Frame{Type: proto.FrameSnapshot, SID: 1, Seq: 14, Payload: []byte("screenlive")}) // delta replay for c2
+	a.sendFrame(proto.Frame{Type: proto.FrameOutput, SID: 1, Seq: 14, Payload: []byte("after")})
+
+	for i, want := range []string{"live", "after"} {
+		if f := c1.nextFrame(); f.Type != proto.FrameOutput || string(f.Payload) != want {
+			t.Fatalf("c1 frame %d: %+v want output %q", i, f, want)
+		}
+	}
+	if f := c2.nextFrame(); f.Type != proto.FrameSnapshot || string(f.Payload) != "screenlive" || f.Seq != 14 {
+		t.Fatalf("c2 first frame must be its snapshot, got %+v", f)
+	}
+	if f := c2.nextFrame(); f.Type != proto.FrameOutput || string(f.Payload) != "after" {
+		t.Fatalf("c2 after snapshot: %+v", f)
+	}
+}
+
+// TestDecideLevelAndErrorRouting: only level-A (hook) approvals accept a
+// decision; the agent's reply to approval.decide carries the deciding
+// client's id so an error reaches that client only.
+func TestDecideLevelAndErrorRouting(t *testing.T) {
+	e := newTestEnv(t)
+	cookie := e.login()
+	dev := e.pairDevice(cookie, "pc")
+	a := e.connectAgent(dev)
+	a.hello(sessionInfo(3, "claude"))
+	c1, _, _, _ := e.connectClient(cookie)
+	c2, _, _, _ := e.connectClient(cookie)
+
+	tests := []struct {
+		name  string
+		level proto.ApprovalLevel
+		mode  proto.ApprovalMode
+		want  int // HTTP status of POST /api/approvals/{key}/decide
+	}{
+		{"level B keys", proto.LevelKeys, proto.ApprovalNotify, http.StatusBadRequest},
+		{"level C suspect", proto.LevelSuspect, proto.ApprovalNotify, http.StatusBadRequest},
+		{"level A hook", proto.LevelHook, proto.ApprovalRemoteFirst, http.StatusOK},
+	}
+	for i, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			key := "k" + strconv.Itoa(i)
+			ap := newApproval(key, 3)
+			ap.Level, ap.Mode = tc.level, tc.mode
+			a.sendMsg(proto.Msg{T: proto.TApprovalNew, SID: 3, Approval: &ap})
+			c1.waitType(proto.TApprovalNew)
+			c2.waitType(proto.TApprovalNew)
+
+			c1.sendMsg(proto.Msg{T: proto.TApprovalDecide, ReqID: "ws-" + key, Key: key, Decision: "allow"})
+			if tc.want != http.StatusOK {
+				if er := c1.waitType(proto.TError); er.ReqID != "ws-"+key || !strings.Contains(er.Error, "level "+string(tc.level)) {
+					t.Fatalf("ws decide on level %s: %+v", tc.level, er)
+				}
+				if r := e.do(http.MethodPost, "/api/approvals/"+key+"/decide", map[string]string{"decision": "allow"}, cookie); r.status != tc.want {
+					t.Fatalf("http decide: %d %v", r.status, r.body)
+				}
+				if row, err := e.st.GetApproval(context.Background(), key); err != nil || row.Status != proto.ApprovalPending {
+					t.Fatalf("approval must stay pending: %+v %v", row, err)
+				}
+				return
+			}
+			got := a.waitType(proto.TApprovalDecide)
+			if got.ClientID != c1.id || got.By != "web:"+c1.id || got.ReqID != "ws-"+key {
+				t.Fatalf("agent decide must carry the deciding client id: %+v", got)
+			}
+			c1.waitType(proto.TApprovalClosed)
+			c2.waitType(proto.TApprovalClosed)
+			c1.waitType(proto.TAck)
+			// the agent answers with an error (e.g. it no longer holds the key): only c1 sees it
+			a.sendMsg(proto.Msg{T: proto.TError, ReqID: got.ReqID, ClientID: got.ClientID, SID: got.SID, Error: "approval not pending"})
+			if er := c1.waitType(proto.TError); er.ReqID != "ws-"+key || er.Error != "approval not pending" {
+				t.Fatalf("agent error at c1: %+v", er)
+			}
+			c2.sendMsg(proto.Msg{T: proto.TClientHello, ReqID: "sentinel"})
+			if m := c2.nextMsg(); m.T != proto.TAck || m.ReqID != "sentinel" {
+				t.Fatalf("c2 must not receive the agent error, got %+v", m)
 			}
 		})
 	}

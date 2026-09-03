@@ -21,6 +21,12 @@ const OUT = process.env.E2E_OUT ?? '/tmp/claude-0/-home-user-terminalX/cefc0b20-
 const log = (...a) => console.log('[e2e]', ...a);
 const fail = (msg) => { console.error('[e2e] FAIL:', msg); process.exit(1); };
 
+// Terminal text: xterm.js renders to a canvas (WebGL / canvas renderer), so the
+// DOM carries no text; TerminalView exposes the live buffers as window.__tx.
+// Fall back to textContent for the DOM renderer.
+const termHas = (m) => (window.__tx?.terminalSids().some((sid) => window.__tx.terminalText(sid).includes(m)) ?? false)
+  || (document.querySelector('.xterm')?.textContent?.includes(m) ?? false);
+
 async function api(method, p, body, cookie) {
   const res = await fetch(RELAY + p, {
     method,
@@ -87,7 +93,7 @@ log('session opened');
 const marker = 'hello-e2e-' + Date.now();
 await page.fill('input[aria-label="整行输入"]', `echo ${marker}`);
 await page.press('input[aria-label="整行输入"]', 'Enter');
-await page.waitForFunction((m) => document.querySelector('.xterm')?.textContent?.includes(m), marker, { timeout: 10000 }).catch(() => fail('marker not echoed in terminal\n' + agentLog));
+await page.waitForFunction(termHas, marker, { timeout: 10000 }).catch(() => fail('marker not echoed in terminal\n' + agentLog));
 log('echo round-trip ok');
 await page.screenshot({ path: path.join(OUT, 'e2e-2-echo.png') });
 
@@ -99,7 +105,7 @@ await page.waitForTimeout(300);
 await page.reload();
 await page.waitForSelector('.device', { timeout: 15000 });
 await page.click(`.sess:has-text("e2e-shell")`);
-await page.waitForFunction((m) => document.querySelector('.xterm')?.textContent?.includes(m), marker, { timeout: 10000 }).catch(() => fail('snapshot replay missing marker\n' + agentLog));
+await page.waitForFunction(termHas, marker, { timeout: 10000 }).catch(() => fail('snapshot replay missing marker\n' + agentLog));
 log('snapshot replay ok');
 await page.screenshot({ path: path.join(OUT, 'e2e-3-replay.png') });
 
@@ -108,10 +114,11 @@ await page.click('nav button:has-text("待确认")');
 await page.waitForSelector('text=待确认收件箱');
 await page.click('nav button:has-text("控制台")');
 
-// close session
-await page.click('button:has-text("结束会话")').catch(() => {});
+// close session: accept the confirm() dialog, then the tab and the session entry must disappear
 page.once('dialog', (d) => d.accept());
-await page.waitForTimeout(800);
+await page.click('button:has-text("结束会话")');
+await page.waitForFunction(() => !document.querySelector('.tab[aria-selected="true"]') && !document.querySelector('.sess'), null, { timeout: 10000 }).catch(() => fail('session.closed not reflected in UI\n' + agentLog));
+log('session closed');
 
 if (errors.length) log('page errors:', errors);
 await browser.close();

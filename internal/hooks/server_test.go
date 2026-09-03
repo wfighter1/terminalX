@@ -321,10 +321,16 @@ func TestClaudeSettings(t *testing.T) {
 	if pr["headers"].(map[string]string)["Authorization"] != "Bearer $TX_HOOK_TOKEN" {
 		t.Fatalf("headers: %+v", pr["headers"])
 	}
+	// notify mode must keep the long hook timeout: the mode can be switched
+	// to remote_first at runtime and Claude reads --settings only once.
 	m2 := ClaudeSettings(ClaudeSettingsOptions{SID: 5, Port: 4321, Token: "tk", Mode: proto.ApprovalNotify})
-	pr2 := m2["hooks"].(map[string]any)["PermissionRequest"].([]map[string]any)[0]["hooks"].([]map[string]any)[0]
-	if pr2["timeout"] != 10 {
-		t.Fatalf("notify timeout: %v", pr2["timeout"])
+	h2 := m2["hooks"].(map[string]any)
+	pr2 := h2["PermissionRequest"].([]map[string]any)[0]["hooks"].([]map[string]any)[0]
+	if pr2["timeout"] != 3600 {
+		t.Fatalf("notify PermissionRequest timeout: %v", pr2["timeout"])
+	}
+	if st := h2["Stop"].([]map[string]any)[0]["hooks"].([]map[string]any)[0]; st["timeout"] != 10 {
+		t.Fatalf("Stop timeout: %v", st["timeout"])
 	}
 	sl := m["statusLine"].(map[string]any)
 	if sl["type"] != "command" || !bytes.Contains([]byte(sl["command"].(string)), []byte("/statusline/5")) {

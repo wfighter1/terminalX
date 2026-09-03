@@ -309,7 +309,7 @@ func (s *Server) handleApprovalDecide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor := "web:" + s.sessionFromRequest(r).ID
-	if err := s.decideApproval(key, req.Decision, actor, req.DeviceID, ""); err != nil {
+	if err := s.decideApproval(key, req.Decision, actor, req.DeviceID, "", ""); err != nil {
 		writeErr(w, err)
 		return
 	}

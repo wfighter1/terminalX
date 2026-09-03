@@ -161,8 +161,10 @@ func (s *Server) audit(actor, deviceID string, sid uint32, action, detail string
 
 // decideApproval applies a console decision: persists it, forwards
 // approval.decide to the owning agent and tells every client. actor is
-// "web:<client_id>" or "web:<login session>".
-func (s *Server) decideApproval(key, decision, actor, deviceHint, reqID string) error {
+// "web:<client_id>" or "web:<login session>"; clientID is the WebSocket
+// client that asked (empty for the HTTP API) so the agent's ack / error
+// for this request can be routed back to it.
+func (s *Server) decideApproval(key, decision, actor, deviceHint, reqID, clientID string) error {
 	if decision != "allow" && decision != "deny" {
 		return errBadRequest("decision must be allow or deny")
 	}
@@ -182,6 +184,13 @@ func (s *Server) decideApproval(key, decision, actor, deviceHint, reqID string) 
 	if a.Status != proto.ApprovalPending {
 		s.mu.Unlock()
 		return errConflict("approval already " + a.Status)
+	}
+	if a.Level != proto.LevelHook {
+		// Only level A items are answered through the hook; B / C are
+		// answered with keystrokes in the terminal, a "decision" here would
+		// mark them allowed without anything happening on the device.
+		s.mu.Unlock()
+		return errBadRequest("approval level " + string(a.Level) + " is answered in the terminal, not by decision")
 	}
 	deviceID := a.DeviceID
 	if deviceID == "" {
@@ -211,7 +220,7 @@ func (s *Server) decideApproval(key, decision, actor, deviceHint, reqID string) 
 		s.log.Error("persist approval decision", "key", key, "err", err)
 	}
 	ac.sendMsg(proto.Msg{
-		T: proto.TApprovalDecide, ReqID: reqID, DeviceID: deviceID, ClientID: actor,
+		T: proto.TApprovalDecide, ReqID: reqID, DeviceID: deviceID, ClientID: clientID,
 		SID: snapshot.SID, Key: key, Decision: decision, By: actor,
 	})
 	s.audit(actor, deviceID, snapshot.SID, "approval.decide", decision+" "+snapshot.Tool+" "+snapshot.Summary)

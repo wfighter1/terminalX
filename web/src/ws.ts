@@ -16,6 +16,7 @@ export class RelayClient {
   private handlers = new Map<number, FrameHandler>();
   private lastSeq = new Map<number, bigint>();
   private attachInfo = new Map<number, string>(); // sid -> device_id
+  private deviceOnline = new Map<string, boolean>();
   private backoff = 2000;
   private closedByUser = false;
   private reconnectTimer: number | null = null;
@@ -43,11 +44,15 @@ export class RelayClient {
     };
     ws.onmessage = (ev) => {
       if (typeof ev.data === 'string') {
+        let m: Msg;
         try {
-          this.onMsg(JSON.parse(ev.data) as Msg);
+          m = JSON.parse(ev.data) as Msg;
         } catch (e) {
           console.error('bad control message', e);
+          return;
         }
+        this.trackDevices(m);
+        this.onMsg(m);
         return;
       }
       let f: Frame;
@@ -77,6 +82,28 @@ export class RelayClient {
     this.ws?.close();
     this.ws = null;
     this.setState('closed');
+  }
+
+  /**
+   * When an agent reconnects to the relay, the relay flags our attachments
+   * as "pending snapshot" but nobody re-sends session.attach to the new
+   * agent connection; do it here on the offline → online transition so the
+   * terminal receives its delta / snapshot again.
+   */
+  private trackDevices(m: Msg): void {
+    const seen = (id: string, online: boolean) => {
+      const was = this.deviceOnline.get(id);
+      this.deviceOnline.set(id, online);
+      if (online && was === false) this.reattachDevice(id);
+    };
+    if (m.t === 'device.state' && m.device) seen(m.device.id, m.device.online);
+    if (m.t === 'device.list') for (const d of m.devices ?? []) seen(d.id, d.online);
+  }
+
+  private reattachDevice(deviceId: string): void {
+    for (const [sid, dev] of this.attachInfo) {
+      if (dev === deviceId) this.send({ t: 'session.attach', device_id: deviceId, sid, last_seq: Number(this.lastSeq.get(sid) ?? 0n) });
+    }
   }
 
   private scheduleReconnect(): void {

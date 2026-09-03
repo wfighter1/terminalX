@@ -8,6 +8,29 @@ import { relay } from '../ws';
 const enc = new TextEncoder();
 const ACK_EVERY = 64 * 1024;
 
+/** Live terminals by sid; exposed as window.__tx so scripts (e2e) can read the
+ *  screen text — the WebGL renderer draws to a canvas, leaving no text in the DOM. */
+const terminals = new Map<number, Terminal>();
+
+/** Text of the terminal buffer for sid ("" when not open). */
+export function terminalText(sid: number): string {
+  const term = terminals.get(sid);
+  if (!term) return '';
+  const buf = term.buffer.active;
+  const lines: string[] = [];
+  for (let i = 0; i < buf.length; i++) lines.push(buf.getLine(i)?.translateToString(true) ?? '');
+  return lines.join('\n');
+}
+
+declare global {
+  interface Window {
+    __tx?: { terminalText: (sid: number) => string; terminalSids: () => number[] };
+  }
+}
+if (typeof window !== 'undefined') {
+  window.__tx = { terminalText, terminalSids: () => Array.from(terminals.keys()) };
+}
+
 /**
  * One xterm instance per session. Stays mounted while the tab is open so the
  * screen state survives switching tabs; `active` toggles visibility and
@@ -41,6 +64,7 @@ export default function TerminalView({ sid, deviceId, active }: { sid: number; d
     }
     termRef.current = term;
     fitRef.current = fit;
+    terminals.set(sid, term);
 
     let unacked = 0;
     const onFrame = (f: Frame) => {
@@ -107,6 +131,7 @@ export default function TerminalView({ sid, deviceId, active }: { sid: number; d
       disp.dispose();
       dispBin.dispose();
       relay.detach(sid);
+      terminals.delete(sid);
       term.dispose();
       termRef.current = null;
       fitRef.current = null;

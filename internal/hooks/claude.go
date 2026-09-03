@@ -62,9 +62,14 @@ type ClaudeSettingsOptions struct {
 	SID   uint32
 	Port  int
 	Token string
-	Mode  proto.ApprovalMode
-	// Timeouts in seconds for the PermissionRequest hook; zero picks the
-	// defaults (3600 for remote_first, 10 for notify).
+	// Mode is the approval mode at session start. It does not change the
+	// generated file: the PermissionRequest hook always gets the
+	// remote_first timeout because Claude reads --settings once, while the
+	// mode can be toggled per session at runtime (session.set_mode). In
+	// notify mode the endpoint answers immediately anyway.
+	Mode proto.ApprovalMode
+	// RemoteFirstTimeout (seconds) is the PermissionRequest hook timeout;
+	// zero picks 3600. Every other hook uses NotifyTimeout (zero = 10).
 	RemoteFirstTimeout int
 	NotifyTimeout      int
 }
@@ -89,19 +94,17 @@ func ClaudeSettings(o ClaudeSettingsOptions) map[string]any {
 		}
 		return []map[string]any{{"hooks": []map[string]any{h}}}
 	}
-	permTimeout := o.NotifyTimeout
+	permTimeout := o.RemoteFirstTimeout
 	if permTimeout == 0 {
-		permTimeout = 10
+		permTimeout = 3600
 	}
-	if o.Mode == proto.ApprovalRemoteFirst {
-		permTimeout = o.RemoteFirstTimeout
-		if permTimeout == 0 {
-			permTimeout = 3600
-		}
+	otherTimeout := o.NotifyTimeout
+	if otherTimeout == 0 {
+		otherTimeout = 10
 	}
 	hooks := map[string]any{}
 	for _, ev := range ClaudeEvents {
-		t := 10
+		t := otherTimeout
 		if ev == "PermissionRequest" {
 			t = permTimeout
 		}

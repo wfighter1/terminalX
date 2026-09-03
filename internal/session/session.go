@@ -151,7 +151,7 @@ func Start(o Options) (*Session, error) {
 			return nil, fmt.Errorf("session: cwd %q is not a directory", o.Cwd)
 		}
 	} else {
-		o.Cwd, _ = os.Getwd()
+		o.Cwd = defaultCwd()
 	}
 	path, kind, args, err := ResolveShell(o.Shell)
 	if err != nil {
@@ -477,13 +477,14 @@ func (s *Session) SetApprovalMode(m proto.ApprovalMode) proto.SessionInfo {
 	return s.info
 }
 
-// SetState records a state transition. Structured sources refresh the
+// SetState records a state transition and reports whether it was applied
+// (an exited session keeps its state). Structured sources refresh the
 // "last structured signal" clock used by the PTY heuristic.
-func (s *Session) SetState(st proto.SessionState, kind proto.NeedKind, src proto.Source, conf proto.Confidence, now time.Time) {
+func (s *Session) SetState(st proto.SessionState, kind proto.NeedKind, src proto.Source, conf proto.Confidence, now time.Time) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.info.State == proto.StateExited {
-		return
+		return false
 	}
 	s.info.State = st
 	s.info.Kind = kind
@@ -493,6 +494,20 @@ func (s *Session) SetState(st proto.SessionState, kind proto.NeedKind, src proto
 	case proto.SourceHook, proto.SourceHooksJSON, proto.SourceNotify, proto.SourceStatusLine:
 		s.lastStructured = now
 	}
+	return true
+}
+
+// defaultCwd is the working directory for sessions opened without one: the
+// user's home directory (the agent's own cwd is meaningless when it runs
+// from a scheduled task or service), falling back to the process cwd.
+func defaultCwd() string {
+	if home, err := os.UserHomeDir(); err == nil {
+		if st, err := os.Stat(home); err == nil && st.IsDir() {
+			return home
+		}
+	}
+	wd, _ := os.Getwd()
+	return wd
 }
 
 // SetMetrics records statusLine cost / context and returns the info.

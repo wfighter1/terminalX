@@ -3,6 +3,7 @@ package session
 import (
 	"bytes"
 	"context"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -288,5 +289,33 @@ func TestNewSID(t *testing.T) {
 	}
 	if len(seen) < 990 {
 		t.Fatalf("sids not random enough: %d unique", len(seen))
+	}
+}
+
+func TestSessionDefaultCwd(t *testing.T) {
+	requireBash(t)
+	home := t.TempDir()
+	wd, _ := os.Getwd()
+	tests := []struct {
+		name string
+		home string
+		want string
+	}{
+		{"home dir", home, home},
+		{"no home falls back to process cwd", "", wd},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("HOME", tc.home)
+			c := &collector{}
+			s, err := Start(Options{Shell: "bash", Env: []string{"PS1=$ ", "TERM=dumb"}, OnOutput: c.on})
+			if err != nil {
+				t.Fatalf("Start: %v", err)
+			}
+			t.Cleanup(s.Close)
+			if got := s.Info().Cwd; got != tc.want {
+				t.Fatalf("cwd = %q want %q", got, tc.want)
+			}
+		})
 	}
 }

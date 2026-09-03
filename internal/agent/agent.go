@@ -349,7 +349,9 @@ func (a *Agent) SessionState(sid uint32, st proto.SessionState, kind proto.NeedK
 	if s == nil {
 		return
 	}
-	s.SetState(st, kind, src, conf, time.Now())
+	if !s.SetState(st, kind, src, conf, time.Now()) {
+		return // exited sessions keep their state; do not resurrect them in the console
+	}
 	a.sendMsg(proto.Msg{T: proto.TSessionState, SID: sid, State: st, Kind: kind, Source: src, Confidence: conf})
 }
 
