@@ -1,0 +1,1589 @@
+<title>terminalX 控制台</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0F1318;
+    --panel: #151A21;
+    --panel-2: #1B222B;
+    --panel-3: #222A34;
+    --border: #28313D;
+    --border-strong: #36414F;
+    --text: #E8ECF1;
+    --text-2: #B9C2CE;
+    --muted: #8A96A6;
+    --accent: #F0A030;
+    --accent-hover: #F7B44A;
+    --on-accent: #1A1200;
+    --accent-soft: rgba(240, 160, 48, .14);
+    --ok: #3ECF8E;
+    --warn: #F5C542;
+    --err: #F26D6D;
+    --info: #5DA9FF;
+    --ok-soft: rgba(62, 207, 142, .14);
+    --warn-soft: rgba(245, 197, 66, .16);
+    --err-soft: rgba(242, 109, 109, .14);
+    --info-soft: rgba(93, 169, 255, .14);
+    --term-bg: #0A0D11;
+    --term-fg: #D7DEE7;
+    --term-dim: #6B7685;
+    --t-green: #79E29A;
+    --t-yellow: #F2D479;
+    --t-blue: #7FB3FF;
+    --t-magenta: #D39BFF;
+    --t-cyan: #6FD9E0;
+    --t-red: #FF8080;
+    --shadow: 0 8px 24px rgba(0, 0, 0, .35);
+    --radius: 8px;
+    --font-ui: "IBM Plex Sans", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-mono: "JetBrains Mono", "Noto Sans Mono", Consolas, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      color-scheme: light;
+      --bg: #F2F4F7;
+      --panel: #FFFFFF;
+      --panel-2: #F6F8FA;
+      --panel-3: #ECF0F4;
+      --border: #DCE2E9;
+      --border-strong: #C5CDD8;
+      --text: #1B2330;
+      --text-2: #3D4856;
+      --muted: #5E6B7C;
+      --accent: #C4740E;
+      --accent-hover: #A96108;
+      --on-accent: #FFFFFF;
+      --accent-soft: rgba(196, 116, 14, .12);
+      --ok: #1E9E63;
+      --warn: #A8780A;
+      --err: #D14343;
+      --info: #2F6FD6;
+      --ok-soft: rgba(30, 158, 99, .12);
+      --warn-soft: rgba(168, 120, 10, .14);
+      --err-soft: rgba(209, 67, 67, .12);
+      --info-soft: rgba(47, 111, 214, .12);
+      --shadow: 0 8px 24px rgba(20, 30, 45, .12);
+    }
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #F2F4F7;
+    --panel: #FFFFFF;
+    --panel-2: #F6F8FA;
+    --panel-3: #ECF0F4;
+    --border: #DCE2E9;
+    --border-strong: #C5CDD8;
+    --text: #1B2330;
+    --text-2: #3D4856;
+    --muted: #5E6B7C;
+    --accent: #C4740E;
+    --accent-hover: #A96108;
+    --on-accent: #FFFFFF;
+    --accent-soft: rgba(196, 116, 14, .12);
+    --ok: #1E9E63;
+    --warn: #A8780A;
+    --err: #D14343;
+    --info: #2F6FD6;
+    --ok-soft: rgba(30, 158, 99, .12);
+    --warn-soft: rgba(168, 120, 10, .14);
+    --err-soft: rgba(209, 67, 67, .12);
+    --info-soft: rgba(47, 111, 214, .12);
+    --shadow: 0 8px 24px rgba(20, 30, 45, .12);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, a:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  code, .mono { font-family: var(--font-mono); }
+  .num { font-variant-numeric: tabular-nums; }
+  h1, h2, h3, h4 { margin: 0; text-wrap: balance; font-weight: 600; }
+  p { margin: 0; }
+
+  /* ---------- prototype navigation bar ---------- */
+  .proto {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    flex-wrap: wrap;
+  }
+  .proto-label {
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .proto-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .proto-tab {
+    border: 1px solid transparent;
+    background: transparent;
+    padding: 6px 12px;
+    border-radius: 999px;
+    color: var(--text-2);
+  }
+  .proto-tab:hover { background: var(--panel-2); }
+  .proto-tab[aria-selected="true"] {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+  .proto-scene {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .proto-scene strong { color: var(--text-2); font-weight: 500; }
+
+  main { padding: 16px; max-width: 1480px; margin: 0 auto; }
+  .screen { display: grid; gap: 16px; }
+  .screen-title { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .screen-title h2 { font-size: 18px; }
+  .screen-title p { color: var(--muted); max-width: 70ch; }
+
+  /* ---------- shared atoms ---------- */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    line-height: 18px;
+  }
+  .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .pill.running { background: var(--ok-soft); color: var(--ok); }
+  .pill.running::before { animation: pulse 1.4s ease-in-out infinite; }
+  .pill.waiting { background: var(--warn-soft); color: var(--warn); }
+  .pill.idle { background: var(--panel-3); color: var(--muted); }
+  .pill.error { background: var(--err-soft); color: var(--err); }
+  .pill.offline { background: var(--panel-3); color: var(--muted); }
+  .pill.offline::before { background: var(--border-strong); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+  @media (prefers-reduced-motion: reduce) {
+    .pill.running::before { animation: none; }
+    .cursor { animation: none; }
+  }
+
+  .tool {
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    flex: none;
+  }
+  .tool.claude { background: rgba(217, 119, 87, .18); color: #E4906E; }
+  .tool.codex { background: rgba(120, 200, 190, .16); color: #7ED0C4; }
+  .tool.grok { background: rgba(200, 200, 210, .16); color: #C9CED8; }
+  .tool.minimax { background: rgba(255, 90, 120, .16); color: #FF8DA5; }
+  .tool.shell { background: rgba(93, 169, 255, .16); color: var(--info); }
+  :root[data-theme="light"] .tool.grok, :root:not([data-theme="dark"]) .tool.grok { color: #4A5260; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tool.grok { color: #C9CED8; } }
+  :root[data-theme="dark"] .tool.grok { color: #C9CED8; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    background: var(--panel-2);
+    color: var(--text);
+    font-weight: 500;
+    line-height: 20px;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--panel-3); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn.ok { background: var(--ok); border-color: var(--ok); color: #05261A; }
+  .btn.ok:hover { filter: brightness(1.08); }
+  .btn.danger { background: transparent; border-color: color-mix(in srgb, var(--err) 50%, transparent); color: var(--err); }
+  .btn.danger:hover { background: var(--err-soft); }
+  .btn.ghost { background: transparent; border-color: transparent; color: var(--text-2); }
+  .btn.ghost:hover { background: var(--panel-2); }
+  .btn.sm { padding: 3px 8px; font-size: 12px; line-height: 18px; }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  .kbd {
+    display: inline-block;
+    padding: 0 6px;
+    border: 1px solid var(--border-strong);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 18px;
+    background: var(--panel-2);
+    color: var(--text-2);
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .card-head .count {
+    margin-left: auto;
+    background: var(--panel-3);
+    color: var(--text-2);
+    padding: 0 8px;
+    border-radius: 999px;
+    letter-spacing: 0;
+    font-weight: 600;
+  }
+  .card-head .count.hot { background: var(--warn-soft); color: var(--warn); }
+
+  /* ---------- console top bar ---------- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    flex-wrap: wrap;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: -.01em;
+  }
+  .brand-mark {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    background: var(--accent);
+    color: var(--on-accent);
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+  }
+  .brand small { color: var(--muted); font-weight: 400; font-size: 11px; }
+  .cmdk {
+    flex: 1 1 260px;
+    max-width: 480px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel-2);
+    color: var(--muted);
+  }
+  .cmdk .kbd { margin-left: auto; }
+  .relay {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-2);
+  }
+  .relay .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
+  .relay .sep { color: var(--border-strong); }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .inbox-btn { position: relative; }
+  .inbox-btn .badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--warn);
+    color: #2A1F00;
+    font-size: 11px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+  }
+  .avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #5DA9FF, #D39BFF);
+    display: grid;
+    place-items: center;
+    color: #0B1220;
+    font-weight: 700;
+    font-size: 12px;
+  }
+
+  /* ---------- console layout ---------- */
+  .console {
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr) 320px;
+    gap: 16px;
+    align-items: start;
+  }
+  @media (max-width: 1180px) {
+    .console { grid-template-columns: 240px minmax(0, 1fr); }
+    .console .side { grid-column: 1 / -1; }
+  }
+  @media (max-width: 800px) {
+    .console { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* left rail */
+  .rail { display: grid; gap: 12px; }
+  .device { border-bottom: 1px solid var(--border); }
+  .device:last-child { border-bottom: 0; }
+  .device-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .os {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    background: var(--panel-3);
+    display: grid;
+    place-items: center;
+    color: var(--text-2);
+    flex: none;
+  }
+  .os svg { width: 14px; height: 14px; }
+  .device-name { font-weight: 600; line-height: 18px; }
+  .device-meta { font-size: 11px; color: var(--muted); line-height: 14px; }
+  .device-status { margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+  .device-status.off { background: var(--border-strong); }
+  .sessions { display: grid; padding: 0 6px 8px; gap: 2px; }
+  .sess {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    text-align: left;
+    width: 100%;
+  }
+  .sess:hover { background: var(--panel-2); }
+  .sess[aria-current="true"] { background: var(--panel-3); border-color: var(--border-strong); }
+  .sess > span:nth-child(2) { min-width: 0; display: grid; }
+  .sess .name { display: block; font-size: 13px; line-height: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sess .sub { display: block; font-size: 11px; color: var(--muted); line-height: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sess .pill { font-size: 11px; padding: 0 7px; }
+  .sess .pill.running::before { width: 5px; height: 5px; }
+  .rail-foot { padding: 10px 12px; display: flex; gap: 8px; border-top: 1px solid var(--border); }
+  .rail-foot .btn { flex: 1; justify-content: center; }
+  .rail-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 12px;
+  }
+  .stat { display: grid; gap: 2px; }
+  .stat b { font-size: 20px; font-weight: 600; line-height: 24px; }
+  .stat span { font-size: 11px; color: var(--muted); }
+  .stat.warn b { color: var(--warn); }
+  .stat.ok b { color: var(--ok); }
+
+  /* terminal pane */
+  .term-pane { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto auto; min-height: 640px; overflow: hidden; }
+  .tabs {
+    display: flex;
+    gap: 2px;
+    padding: 6px 6px 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-2);
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border: 1px solid transparent;
+    border-bottom: 0;
+    border-radius: 6px 6px 0 0;
+    background: transparent;
+    color: var(--text-2);
+    white-space: nowrap;
+    font-size: 13px;
+  }
+  .tab .tool { width: 18px; height: 18px; font-size: 10px; border-radius: 4px; }
+  .tab .st { width: 7px; height: 7px; border-radius: 50%; }
+  .tab .st.running { background: var(--ok); }
+  .tab .st.waiting { background: var(--warn); }
+  .tab .st.idle { background: var(--border-strong); }
+  .tab .st.error { background: var(--err); }
+  .tab[aria-selected="true"] {
+    background: var(--term-bg);
+    color: var(--text);
+    border-color: var(--border);
+    margin-bottom: -1px;
+  }
+  .tab.add { color: var(--muted); }
+  .term-status {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--term-bg);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .term-status .live { color: var(--ok); }
+  .term-status .buf { color: var(--term-dim); }
+  .term {
+    background: var(--term-bg);
+    color: var(--term-fg);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 20px;
+    padding: 12px 16px 8px;
+    overflow: auto;
+    min-height: 380px;
+    max-height: 480px;
+    white-space: pre;
+  }
+  .term .ln { display: block; min-height: 20px; }
+  .term .ln.enter { animation: fadein .25s ease-out; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+  .c-g { color: var(--t-green); }
+  .c-y { color: var(--t-yellow); }
+  .c-b { color: var(--t-blue); }
+  .c-m { color: var(--t-magenta); }
+  .c-c { color: var(--t-cyan); }
+  .c-r { color: var(--t-red); }
+  .c-d { color: var(--term-dim); }
+  .c-w { color: #FFFFFF; font-weight: 500; }
+  .c-claude { color: #E4906E; }
+  .c-minimax { color: #FF8DA5; }
+  .cursor { display: inline-block; width: 8px; height: 16px; background: var(--term-fg); vertical-align: -3px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .spin { color: var(--t-cyan); }
+
+  .approval {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--warn-soft);
+    border-top: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
+  }
+  .approval[hidden] { display: none; }
+  .approval .icon { width: 30px; height: 30px; border-radius: 8px; background: var(--warn); color: #2A1F00; display: grid; place-items: center; font-weight: 700; }
+  .approval .what { font-weight: 600; line-height: 18px; }
+  .approval .what code { background: rgba(0, 0, 0, .25); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+  .approval .why { font-size: 12px; color: var(--text-2); line-height: 16px; }
+  .approval .remember { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); margin-top: 4px; }
+  .approval .remember input { accent-color: var(--accent); margin: 0; }
+  .approval .actions { display: flex; gap: 8px; }
+  @media (max-width: 640px) {
+    .approval { grid-template-columns: auto minmax(0, 1fr); }
+    .approval .actions { grid-column: 1 / -1; }
+  }
+
+  .inputbar {
+    display: grid;
+    gap: 8px;
+    padding: 8px 10px 10px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    border-radius: 0 0 var(--radius) var(--radius);
+  }
+  .input-row { display: flex; gap: 8px; }
+  .input-row input {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    background: var(--term-bg);
+    color: var(--term-fg);
+  }
+  .input-row input::placeholder { color: var(--term-dim); }
+  .keys { display: flex; gap: 6px; flex-wrap: wrap; }
+  .key {
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    background: var(--panel-2);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-2);
+    min-width: 40px;
+  }
+  .key:hover { background: var(--panel-3); color: var(--text); }
+  .key.on { background: var(--accent-soft); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+
+  /* right side panel */
+  .side { display: grid; gap: 12px; }
+  .kv { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 6px 10px; padding: 12px 14px; font-size: 13px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .kv dd code { font-size: 12px; }
+  .side-actions { display: flex; gap: 6px; padding: 0 14px 12px; flex-wrap: wrap; }
+  .inbox-list { display: grid; }
+  .inbox-item {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 4px 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    background: transparent;
+    border-left: 0; border-right: 0; border-top: 0;
+    width: 100%;
+  }
+  .inbox-item:last-child { border-bottom: 0; }
+  .inbox-item:hover { background: var(--panel-2); }
+  .inbox-item .where { font-size: 11px; color: var(--muted); }
+  .inbox-item .ask { font-size: 13px; line-height: 18px; }
+  .inbox-item .ask code { font-size: 12px; background: var(--panel-3); padding: 0 5px; border-radius: 4px; }
+  .inbox-item .wait { font-size: 11px; color: var(--warn); }
+  .inbox-empty { padding: 18px 14px; color: var(--muted); font-size: 13px; text-align: center; }
+  .events { display: grid; padding: 8px 14px 12px; gap: 6px; font-size: 12px; }
+  .ev { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 8px; }
+  .ev time { color: var(--muted); font-family: var(--font-mono); font-size: 11px; line-height: 18px; }
+  .ev span { color: var(--text-2); line-height: 18px; }
+  .ev.hot span { color: var(--warn); }
+  .ev.ok span { color: var(--ok); }
+
+  /* ---------- inbox screen ---------- */
+  .inbox-page { display: grid; gap: 12px; }
+  .inbox-row {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr) 100px auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .inbox-row:last-child { border-bottom: 0; }
+  .inbox-row.head { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--panel-2); border-radius: var(--radius) var(--radius) 0 0; }
+  .inbox-row .dev { display: grid; gap: 2px; }
+  .inbox-row .dev b { font-weight: 600; }
+  .inbox-row .dev small { color: var(--muted); }
+  .inbox-row .req { display: grid; gap: 3px; }
+  .inbox-row .req .kind { font-size: 11px; color: var(--muted); }
+  .inbox-row .req code { background: var(--panel-3); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+  .inbox-row .wait { color: var(--warn); font-family: var(--font-mono); font-size: 12px; }
+  .inbox-row .ops { display: flex; gap: 6px; }
+  @media (max-width: 800px) {
+    .inbox-row { grid-template-columns: minmax(0, 1fr); }
+    .inbox-row.head { display: none; }
+  }
+  .policy { display: grid; gap: 8px; padding: 12px 16px; font-size: 13px; }
+  .policy li { color: var(--text-2); }
+  .policy code { font-size: 12px; background: var(--panel-3); padding: 0 5px; border-radius: 4px; }
+  .two-col { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: minmax(0, 1fr); } }
+
+  /* ---------- mobile screen ---------- */
+  .phones { display: flex; gap: 32px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  .phone-wrap { display: grid; gap: 10px; justify-items: center; }
+  .phone-wrap > p { color: var(--muted); font-size: 13px; text-align: center; max-width: 34ch; }
+  .phone {
+    width: 340px;
+    height: 700px;
+    border-radius: 40px;
+    background: #0B0E13;
+    border: 6px solid #1E2530;
+    box-shadow: var(--shadow), inset 0 0 0 1px #2A3341;
+    overflow: hidden;
+    position: relative;
+    color: #E8ECF1;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+  .phone .notch { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 110px; height: 28px; background: #000; border-radius: 999px; z-index: 2; }
+  .phone .sb { display: flex; justify-content: space-between; padding: 14px 22px 0; font-size: 13px; font-weight: 600; font-family: var(--font-mono); }
+  .lock { display: grid; align-content: start; gap: 18px; padding: 44px 16px 16px; background: radial-gradient(120% 80% at 50% 0%, #1B2A3F 0%, #0B0E13 60%); }
+  .lock .time { text-align: center; font-size: 64px; font-weight: 500; line-height: 1; font-family: var(--font-mono); letter-spacing: -.03em; }
+  .lock .date { text-align: center; color: #9AA6B8; font-size: 15px; margin-top: -8px; }
+  .notif {
+    background: rgba(30, 36, 48, .92);
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 18px;
+    padding: 12px 14px;
+    display: grid;
+    gap: 8px;
+    backdrop-filter: blur(10px);
+  }
+  .notif .head { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #9AA6B8; }
+  .notif .head .app { width: 20px; height: 20px; border-radius: 6px; background: var(--accent); color: var(--on-accent); font-family: var(--font-mono); font-size: 10px; font-weight: 700; display: grid; place-items: center; }
+  .notif .head time { margin-left: auto; }
+  .notif .title { font-weight: 600; font-size: 14px; line-height: 18px; }
+  .notif .body { font-size: 13px; color: #C9D1DC; line-height: 18px; }
+  .notif .body code { font-family: var(--font-mono); font-size: 12px; background: rgba(0, 0, 0, .35); padding: 1px 5px; border-radius: 4px; }
+  .notif .acts { display: flex; gap: 8px; }
+  .notif .acts .btn { flex: 1; justify-content: center; }
+  .notif.quiet { opacity: .8; }
+  .notif.done { border-color: color-mix(in srgb, var(--ok) 50%, transparent); }
+  .notif.done .title { color: var(--ok); }
+
+  .app { display: grid; grid-template-rows: auto minmax(0, 1fr); background: #0F1318; }
+  .app-head { padding: 10px 16px 8px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #222A34; }
+  .app-head h3 { font-size: 16px; }
+  .app-head .seg { margin-left: auto; display: flex; background: #1B222B; border-radius: 8px; padding: 2px; font-size: 12px; }
+  .app-head .seg span { padding: 3px 10px; border-radius: 6px; color: #8A96A6; }
+  .app-head .seg span.on { background: #2A3340; color: #E8ECF1; }
+  .app-list { overflow: auto; padding: 8px 12px; display: grid; gap: 8px; align-content: start; }
+  .app-sess { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; background: #151A21; border: 1px solid #28313D; border-radius: 12px; }
+  .app-sess .tool { width: 26px; height: 26px; }
+  .app-sess .n { font-size: 14px; font-weight: 500; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .app-sess .m { font-size: 11px; color: #8A96A6; line-height: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .app-sess.hot { border-color: color-mix(in srgb, var(--warn) 50%, transparent); }
+  .app-term { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: var(--term-bg); }
+  .app-term .bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #222A34; font-size: 13px; }
+  .app-term .bar .back { color: #8A96A6; font-family: var(--font-mono); }
+  .app-term .term { min-height: 0; max-height: none; font-size: 11.5px; line-height: 17px; padding: 10px 12px; white-space: pre-wrap; word-break: break-all; }
+  .app-keys { display: grid; gap: 6px; padding: 8px 10px 12px; background: #151A21; border-top: 1px solid #222A34; }
+  .app-keys .row { display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr 1fr 1fr; gap: 6px; }
+  .app-keys .key { padding: 8px 0; text-align: center; min-width: 0; background: #1B222B; border-color: #2A3340; color: #C9D1DC; }
+  .app-keys .key.y { background: var(--ok-soft); color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+  .app-keys .key.n { background: var(--err-soft); color: var(--err); border-color: color-mix(in srgb, var(--err) 40%, transparent); }
+  .app-keys .compose { display: flex; gap: 6px; }
+  .app-keys .compose input { flex: 1; min-width: 0; background: var(--term-bg); border: 1px solid #2A3340; border-radius: 8px; color: #E8ECF1; padding: 8px 10px; font-family: var(--font-mono); font-size: 13px; }
+  .home-bar { height: 5px; width: 120px; border-radius: 3px; background: #3A4453; margin: 6px auto 8px; }
+
+  /* ---------- pairing screen ---------- */
+  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 960px) { .steps { grid-template-columns: minmax(0, 1fr); } }
+  .step { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+  .step-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .step-no { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; font-weight: 700; font-family: var(--font-mono); font-size: 13px; }
+  .step-head h3 { font-size: 15px; }
+  .step-head small { margin-left: auto; color: var(--muted); }
+  .step-body { padding: 14px 16px; display: grid; gap: 12px; align-content: start; }
+  .step-body p { color: var(--text-2); max-width: 46ch; }
+  .cmd {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    background: var(--term-bg);
+    color: var(--term-fg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    overflow-x: auto;
+  }
+  .cmd > span { white-space: nowrap; }
+  .cmd .c-d { user-select: none; }
+  .paircode {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 16px;
+    align-items: center;
+    padding: 14px;
+    background: var(--panel-2);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius);
+  }
+  .qr { width: 116px; height: 116px; display: grid; grid-template-columns: repeat(21, 1fr); background: #FFFFFF; padding: 6px; border-radius: 6px; }
+  .qr i { display: block; }
+  .qr i.on { background: #0B0E13; }
+  .code { font-family: var(--font-mono); font-size: 30px; font-weight: 700; letter-spacing: .08em; line-height: 1; }
+  .code small { display: block; font-size: 12px; color: var(--muted); letter-spacing: 0; font-weight: 400; margin-top: 8px; }
+  .ttl { font-size: 12px; color: var(--muted); }
+  .trust { display: grid; gap: 8px; padding: 12px 14px; font-size: 13px; }
+  .trust li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; color: var(--text-2); }
+  .trust li::before { content: "✓"; color: var(--ok); font-weight: 700; }
+  .devcard { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding: 14px; border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent); border-radius: var(--radius); background: var(--ok-soft); align-items: center; }
+  .devcard .os { width: 40px; height: 40px; background: var(--panel); }
+  .devcard .os svg { width: 20px; height: 20px; }
+  .devcard b { display: block; }
+  .devcard small { color: var(--text-2); font-family: var(--font-mono); font-size: 11px; }
+  .fp { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+  .fp code { font-size: 12px; color: var(--text-2); }
+
+  /* ---------- architecture screen ---------- */
+  figure { margin: 0; display: grid; gap: 10px; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { color: var(--muted); font-size: 13px; max-width: 80ch; }
+  .arch-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .arch-grid { grid-template-columns: minmax(0, 1fr); } }
+  .list { display: grid; gap: 8px; padding: 12px 16px; font-size: 13px; }
+  .list li { color: var(--text-2); display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 10px; }
+  .list li::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-top: 7px; }
+  .list.out li::before { background: var(--border-strong); }
+  .list code { font-size: 12px; background: var(--panel-3); padding: 0 5px; border-radius: 4px; }
+  ul, ol { margin: 0; padding: 0; list-style: none; }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 20px;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--panel-3);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    padding: 8px 14px;
+    border-radius: 999px;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    transition: opacity .2s, transform .2s;
+    pointer-events: none;
+    font-size: 13px;
+    z-index: 30;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+
+<nav class="proto" aria-label="原型导航">
+  <span class="proto-label">原型 · 第一阶段</span>
+  <div class="proto-tabs" role="tablist">
+    <button class="proto-tab" role="tab" aria-selected="true" data-screen="console">控制台</button>
+    <button class="proto-tab" role="tab" aria-selected="false" data-screen="inbox">待确认收件箱</button>
+    <button class="proto-tab" role="tab" aria-selected="false" data-screen="mobile">手机端</button>
+    <button class="proto-tab" role="tab" aria-selected="false" data-screen="pair">配对流程</button>
+    <button class="proto-tab" role="tab" aria-selected="false" data-screen="arch">架构总览</button>
+  </div>
+  <p class="proto-scene">示例场景：<strong>周三 11:03</strong>，你在通勤路上，办公室 PC 和家里台式机上共有 6 个会话在跑。数据均为示例。</p>
+</nav>
+
+<main>
+  <!-- ================= 控制台 ================= -->
+  <section class="screen" id="screen-console" aria-label="控制台">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">tX</span>terminalX <small>v0.1 · 第一阶段</small></div>
+      <div class="cmdk" role="button" tabindex="0" aria-label="打开命令面板">
+        <span>跳转到会话、设备，或运行命令…</span>
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="relay" title="自建中转节点 · 端到端加密，中转看不到内容">
+        <span class="dot"></span>
+        <span>中转 hk-1</span><span class="sep">·</span>
+        <span class="num mono">32 ms</span><span class="sep">·</span>
+        <span>端到端加密</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn ghost inbox-btn" data-goto="inbox" aria-label="待确认收件箱">待确认<span class="badge" id="badge-inbox">3</span></button>
+        <span class="avatar" aria-label="当前用户">JX</span>
+      </div>
+    </header>
+
+    <div class="console">
+      <!-- left rail -->
+      <aside class="rail">
+        <div class="card">
+          <div class="rail-summary" id="rail-summary"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">设备与会话 <span class="count" id="count-sessions">6</span></div>
+          <div id="devices"></div>
+          <div class="rail-foot">
+            <button class="btn sm" data-goto="pair">＋ 添加设备</button>
+            <button class="btn sm" id="btn-new-session">＋ 新会话</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- terminal pane -->
+      <section class="card term-pane" aria-label="终端">
+        <div class="tabs" id="tabs" role="tablist"></div>
+        <div class="term-status" id="term-status"></div>
+        <div class="term" id="term" tabindex="0" aria-live="polite"></div>
+        <div class="approval" id="approval" hidden></div>
+        <div class="inputbar">
+          <div class="input-row">
+            <input id="term-input" type="text" placeholder="输入后按 Enter 发送到终端（示例：/status、y、继续）" aria-label="终端输入" autocomplete="off">
+            <button class="btn primary" id="btn-send">发送</button>
+          </div>
+          <div class="keys" aria-label="快捷键栏">
+            <button class="key" data-key="Esc">Esc</button>
+            <button class="key" data-key="Tab">Tab</button>
+            <button class="key" data-key="Ctrl" id="key-ctrl">Ctrl</button>
+            <button class="key" data-key="C">C</button>
+            <button class="key" data-key="Up">↑</button>
+            <button class="key" data-key="Down">↓</button>
+            <button class="key" data-key="Left">←</button>
+            <button class="key" data-key="Right">→</button>
+            <button class="key" data-key="/">/</button>
+            <button class="key" data-key="y">y</button>
+            <button class="key" data-key="n">n</button>
+            <button class="key" data-key="Shift+Tab">⇧Tab</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- right side -->
+      <aside class="side">
+        <div class="card">
+          <div class="card-head">会话信息</div>
+          <dl class="kv" id="session-kv"></dl>
+          <div class="side-actions">
+            <button class="btn sm">只读分享链接</button>
+            <button class="btn sm">回放</button>
+            <button class="btn sm danger" id="btn-kill">结束会话</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">待确认收件箱 <span class="count hot" id="count-inbox">3</span></div>
+          <div class="inbox-list" id="inbox-mini"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">事件</div>
+          <div class="events" id="events"></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ================= 收件箱 ================= -->
+  <section class="screen" id="screen-inbox" aria-label="待确认收件箱" hidden>
+    <div class="screen-title">
+      <h2>待确认收件箱</h2>
+      <p>所有设备、所有 AI CLI 停下来等你的地方，都汇总在这里。不用逐个翻终端，先处理最久的。</p>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="inbox-row head"><span>设备 / 会话</span><span>请求</span><span>已等待</span><span>操作</span></div>
+        <div id="inbox-full"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">本会话内的自动允许规则</div>
+        <ul class="policy" id="policy-list">
+          <li>规则只在当前会话生效，会话结束即失效，不会变成全局放权。</li>
+          <li>示例：允许一次 <code>go test ./...</code> 时勾选「记住」，后续同类命令不再打断你。</li>
+          <li>写入 <code>.env</code>、<code>rm -rf</code>、<code>git push --force</code> 等高危操作始终需要人工确认。</li>
+        </ul>
+        <div class="card-head">统计</div>
+        <div class="rail-summary">
+          <div class="stat"><b class="num">27</b><span>今日已确认</span></div>
+          <div class="stat"><b class="num">4</b><span>今日已拒绝</span></div>
+          <div class="stat warn"><b class="num">6.5 分</b><span>平均等待</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 手机端 ================= -->
+  <section class="screen" id="screen-mobile" aria-label="手机端" hidden>
+    <div class="screen-title">
+      <h2>手机端</h2>
+      <p>手机不是用来「看远程桌面」的，而是用来处理两件事：批准 agent 的请求，以及给它下一句指令。终端只是备用视图。</p>
+    </div>
+    <div class="phones">
+      <div class="phone-wrap">
+        <div class="phone" aria-label="锁屏通知">
+          <div class="notch"></div>
+          <div class="sb"><span>11:03</span><span>●●●● 5G</span></div>
+          <div class="lock">
+            <div>
+              <div class="time">11:03</div>
+              <div class="date">9月3日 星期三</div>
+            </div>
+            <div id="phone-notifs"></div>
+          </div>
+          <div class="home-bar"></div>
+        </div>
+        <p>agent 停下来等确认时，手机立刻收到通知。锁屏上直接允许或拒绝，不用打开终端。</p>
+      </div>
+      <div class="phone-wrap">
+        <div class="phone" aria-label="会话列表与紧凑终端">
+          <div class="notch"></div>
+          <div class="sb"><span>11:04</span><span>●●●● 5G</span></div>
+          <div class="app" id="phone-app"></div>
+          <div class="home-bar"></div>
+        </div>
+        <p>会话列表按「等待确认」置顶。点进任意会话是一个为触屏改过的终端：大按键、方向键、y / n 一键回复。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 配对 ================= -->
+  <section class="screen" id="screen-pair" aria-label="配对流程" hidden>
+    <div class="screen-title">
+      <h2>添加一台 Windows 电脑</h2>
+      <p>三步完成。被控端只发起出站连接，家里路由器和公司防火墙都不用开端口。</p>
+    </div>
+    <div class="steps">
+      <div class="card step">
+        <div class="step-head"><span class="step-no">1</span><h3>在 Windows 上安装被控端</h3><small>约 1 分钟</small></div>
+        <div class="step-body">
+          <p>在目标电脑上以管理员身份打开 PowerShell，粘贴一行命令。安装为 Windows 服务，开机自启，锁屏后照常工作。</p>
+          <div class="cmd"><span><span class="c-d">PS&gt; </span>irm https://relay.example.com/install.ps1 | iex</span><button class="btn sm">复制</button></div>
+          <p>已经有 winget 的话也可以：</p>
+          <div class="cmd"><span><span class="c-d">PS&gt; </span>winget install terminalX.Agent</span><button class="btn sm">复制</button></div>
+          <ul class="trust">
+            <li>中转节点地址是你自己的（示例 relay.example.com），不经过任何第三方云。</li>
+            <li>默认 shell 为 PowerShell 7，可改为 cmd、WSL 或 Git Bash。</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card step">
+        <div class="step-head"><span class="step-no">2</span><h3>输入配对码或扫码</h3><small>10 分钟内有效</small></div>
+        <div class="step-body">
+          <p>安装完成后被控端会提示输入配对码。在这里输入，或用手机 App 扫码。</p>
+          <div class="paircode">
+            <div class="qr" id="qr" aria-label="配对二维码（示例）"></div>
+            <div>
+              <div class="code">7K4-P9Q<small>配对码</small></div>
+              <p class="ttl">剩余 <span class="num mono">09:41</span></p>
+            </div>
+          </div>
+          <ul class="trust">
+            <li>配对时双方交换公钥并各自保存对方指纹。以后每次连接都用这对密钥加密，中转节点只能看到密文。</li>
+            <li>配对码一次性使用，过期作废。</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card step">
+        <div class="step-head"><span class="step-no">3</span><h3>设备上线</h3><small>自动</small></div>
+        <div class="step-body">
+          <p>配对成功后，设备出现在控制台左侧。第一次连接时请核对指纹是否与被控端显示的一致。</p>
+          <div class="devcard">
+            <span class="os"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M1 2.8 7.2 2v6H1zM8 1.9 15 1v7H8zM1 8.8h6.2V15L1 14.1zM8 8.8h7V15l-7-.9z"/></svg></span>
+            <div>
+              <b>办公室 PC</b>
+              <small>Windows 11 Pro · Agent v0.1.0 · 在线</small>
+              <div class="fp">设备指纹 <code>SHA256:ab12 9f3e 77c0 …</code></div>
+            </div>
+          </div>
+          <ul class="trust">
+            <li>Web 登录使用 Passkey 或 TOTP 二次验证。</li>
+            <li>每台设备可以单独吊销；吊销后被控端立即断开。</li>
+          </ul>
+          <button class="btn primary" data-goto="console">打开控制台</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 架构 ================= -->
+  <section class="screen" id="screen-arch" aria-label="架构总览" hidden>
+    <div class="screen-title">
+      <h2>第一阶段架构</h2>
+      <p>三个部分：控制端（Web）、自建中转节点、Windows 被控端。终端字节流走端到端加密通道；AI CLI 的状态事件走同一条通道回推到手机。</p>
+    </div>
+    <div class="card" style="padding:16px">
+      <figure>
+        <svg viewBox="0 0 1000 330" role="img" aria-label="控制端经自建中转节点连接 Windows 被控端，被控端通过 ConPTY 驱动 AI CLI；终端流与状态事件都在端到端加密通道内">
+          <defs>
+            <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <g fill="none" stroke="currentColor" stroke-width="1.4" font-family="var(--font-ui)" font-size="13">
+            <!-- E2EE bracket -->
+            <path d="M40 40 v-14 h760 v14" stroke="#F0A030" stroke-width="1.6"/>
+            <text x="420" y="20" text-anchor="middle" fill="#F0A030" stroke="none" font-size="12" font-weight="600">端到端加密（X25519 + ChaCha20-Poly1305）· 中转节点只能看到密文</text>
+
+            <!-- control end -->
+            <rect x="40" y="70" width="180" height="120" rx="8"/>
+            <text x="130" y="96" text-anchor="middle" fill="currentColor" stroke="none" font-weight="600">控制端</text>
+            <text x="130" y="118" text-anchor="middle" fill="currentColor" stroke="none" font-size="12">浏览器 · 手机 App</text>
+            <text x="130" y="140" text-anchor="middle" fill="currentColor" stroke="none" font-size="12" opacity=".7">xterm.js 渲染</text>
+            <text x="130" y="160" text-anchor="middle" fill="currentColor" stroke="none" font-size="12" opacity=".7">收件箱 · 通知</text>
+
+            <!-- relay -->
+            <rect x="330" y="70" width="180" height="120" rx="8" stroke-dasharray="6 4"/>
+            <text x="420" y="96" text-anchor="middle" fill="currentColor" stroke="none" font-weight="600">中转节点（自建）</text>
+            <text x="420" y="118" text-anchor="middle" fill="currentColor" stroke="none" font-size="12">设备注册 · 配对 · 转发</text>
+            <text x="420" y="140" text-anchor="middle" fill="currentColor" stroke="none" font-size="12" opacity=".7">单二进制，任意 VPS</text>
+            <text x="420" y="160" text-anchor="middle" fill="currentColor" stroke="none" font-size="12" opacity=".7">不存会话内容</text>
+
+            <!-- agent -->
+            <rect x="620" y="70" width="180" height="120" rx="8"/>
+            <text x="710" y="96" text-anchor="middle" fill="currentColor" stroke="none" font-weight="600">Windows 被控端</text>
+            <text x="710" y="118" text-anchor="middle" fill="currentColor" stroke="none" font-size="12">Windows 服务，出站连接</text>
+            <text x="710" y="140" text-anchor="middle" fill="currentColor" stroke="none" font-size="12" opacity=".7">PTY 常驻 + 滚动缓冲</text>
+            <text x="710" y="160" text-anchor="middle" fill="currentColor" stroke="none" font-size="12" opacity=".7">断线不丢会话</text>
+
+            <!-- cli -->
+            <rect x="860" y="70" width="110" height="120" rx="8"/>
+            <text x="915" y="96" text-anchor="middle" fill="currentColor" stroke="none" font-weight="600">AI CLI</text>
+            <text x="915" y="118" text-anchor="middle" fill="currentColor" stroke="none" font-size="12" font-family="var(--font-mono)">claude</text>
+            <text x="915" y="136" text-anchor="middle" fill="currentColor" stroke="none" font-size="12" font-family="var(--font-mono)">codex</text>
+            <text x="915" y="154" text-anchor="middle" fill="currentColor" stroke="none" font-size="12" font-family="var(--font-mono)">grok</text>
+            <text x="915" y="172" text-anchor="middle" fill="currentColor" stroke="none" font-size="12" font-family="var(--font-mono)">minimax</text>
+
+            <!-- arrows: data plane -->
+            <line x1="220" y1="110" x2="330" y2="110" marker-end="url(#arr)" marker-start="url(#arr)"/>
+            <text x="275" y="102" text-anchor="middle" fill="currentColor" stroke="none" font-size="11">WSS</text>
+            <line x1="510" y1="110" x2="620" y2="110" marker-end="url(#arr)" marker-start="url(#arr)"/>
+            <text x="565" y="102" text-anchor="middle" fill="currentColor" stroke="none" font-size="11">WSS（出站）</text>
+            <line x1="800" y1="110" x2="860" y2="110" marker-end="url(#arr)" marker-start="url(#arr)"/>
+            <text x="830" y="102" text-anchor="middle" fill="currentColor" stroke="none" font-size="11">ConPTY</text>
+            <text x="565" y="134" text-anchor="middle" fill="currentColor" stroke="none" font-size="11" opacity=".75">PTY 字节流</text>
+
+            <!-- events back -->
+            <path d="M915 190 v50 H130 v-50" marker-end="url(#arr)"/>
+            <text x="520" y="262" text-anchor="middle" fill="currentColor" stroke="none" font-size="11">状态事件：hooks / notify → 「等待确认」「运行中」「已完成」→ 推送到手机</text>
+
+            <!-- optional direct -->
+            <path d="M90 190 v90 H750 v-90" stroke-dasharray="3 4" opacity=".6"/>
+            <text x="420" y="300" text-anchor="middle" fill="currentColor" stroke="none" font-size="11" opacity=".7">局域网 / Tailscale 内直连（可选，绕过中转）</text>
+          </g>
+        </svg>
+        <figcaption>第一阶段只做实线部分：Web 控制端、自建中转、Windows 被控端。虚线是后续可选的直连路径，接口设计上预留。</figcaption>
+      </figure>
+    </div>
+    <div class="arch-grid">
+      <div class="card">
+        <div class="card-head">第一阶段做什么</div>
+        <ul class="list">
+          <li>Web 控制台：设备列表、会话标签页、xterm.js 终端、待确认收件箱</li>
+          <li>自建中转：单二进制部署，设备配对与转发，不落盘会话内容</li>
+          <li>Windows 被控端：Windows 服务，ConPTY 会话常驻，断线重连回放</li>
+          <li>AI 感知：先接 Claude Code hooks 与 Codex notify，其余工具走通用输出规则兜底</li>
+          <li>安全默认值：出站连接、设备配对密钥、Passkey/TOTP 登录、设备吊销</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-head">第一阶段不做什么</div>
+        <ul class="list out">
+          <li>GUI 画面远程、文件传输、剪贴板同步</li>
+          <li>macOS / Linux 被控端（接口预留，第二阶段）</li>
+          <li>原生手机 App（先用响应式 Web + 推送）</li>
+          <li>多人协作与团队权限</li>
+          <li>自动解析每个 CLI 的 TUI 细节（只做「需要你」这一类事件）</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  const OS_WIN = '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M1 2.8 7.2 2v6H1zM8 1.9 15 1v7H8zM1 8.8h6.2V15L1 14.1zM8 8.8h7V15l-7-.9z"/></svg>';
+  const OS_MAC = '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M11.6 8.5c0-1.5 1.2-2.2 1.3-2.3-.7-1-1.8-1.2-2.2-1.2-.9-.1-1.8.5-2.3.5s-1.2-.5-2-.5C5.4 5 4.4 5.6 3.8 6.6c-1.2 2-.3 5 .8 6.6.6.8 1.2 1.7 2.1 1.6.8 0 1.2-.5 2.2-.5s1.3.5 2.2.5 1.5-.8 2-1.6c.6-.9.9-1.8.9-1.8s-1.4-.6-1.4-2.9zM10.1 3.9c.4-.6.7-1.3.6-2.1-.6 0-1.4.4-1.8 1-.4.5-.8 1.3-.7 2 .7.1 1.4-.3 1.9-.9z"/></svg>';
+
+  const TOOL_LABEL = { claude: 'Claude Code', codex: 'Codex CLI', grok: 'Grok CLI', minimax: 'MiniMax Code', shell: 'PowerShell' };
+  const TOOL_SHORT = { claude: 'CC', codex: 'CX', grok: 'GK', minimax: 'MM', shell: 'PS' };
+  const STATE_LABEL = { running: '运行中', waiting: '等待确认', idle: '空闲', error: '出错', offline: '离线' };
+
+  const L = {
+    prompt: (t) => `<span class="c-d">PS </span><span class="c-b">${esc(t)}</span><span class="c-d">&gt;</span> `,
+    cmdline: (cwd, cmd) => `<span class="c-d">PS </span><span class="c-b">${esc(cwd)}</span><span class="c-d">&gt;</span> ${esc(cmd)}`,
+  };
+
+  // ---------- data ----------
+  const devices = [
+    { id: 'office', name: '办公室 PC', os: 'Windows 11 Pro', icon: OS_WIN, online: true, agent: 'v0.1.0', rtt: 32 },
+    { id: 'home', name: '家里台式机', os: 'Windows 11', icon: OS_WIN, online: true, agent: 'v0.1.0', rtt: 58 },
+    { id: 'mbp', name: 'MacBook Pro', os: 'macOS 15 · 第二阶段', icon: OS_MAC, online: false, lastSeen: '昨天 23:12' },
+  ];
+
+  const sessions = [
+    {
+      id: 's1', device: 'office', tool: 'claude', title: 'terminalx · relay 心跳超时', cwd: 'D:\\work\\terminalx', branch: 'feat/relay-heartbeat',
+      model: 'claude-opus-5', state: 'waiting', started: '10:41', elapsed: '00:22', tokens: '128k', cost: '$1.84', mode: '逐条确认',
+      pending: { kind: 'bash', label: '执行命令', cmd: 'go test ./relay/...', why: 'Claude Code 想运行 relay 包的单元测试来验证刚才的修改', since: '2 分钟', rememberHint: '本会话内的 go test 命令自动允许' },
+      lines: [
+        L.cmdline('D:\\work\\terminalx', 'claude'),
+        '',
+        `<span class="c-claude">╭─ Claude Code ─────────────────────────────</span>`,
+        `<span class="c-claude">│</span> <span class="c-claude">✻</span> Welcome to Claude Code!`,
+        `<span class="c-claude">│</span>   <span class="c-d">model: claude-opus-5 · cwd: D:\\work\\terminalx</span>`,
+        `<span class="c-claude">╰───────────────────────────────────────────</span>`,
+        '',
+        `<span class="c-w">&gt;</span> 把 relay 的心跳超时从 30s 改成 15s，并补一个单元测试`,
+        '',
+        `<span class="c-claude">●</span> 我先看一下 relay/heartbeat.go 的实现。`,
+        `<span class="c-g">●</span> <span class="c-w">Read</span>(relay/heartbeat.go)`,
+        `  <span class="c-d">⎿</span> 读取 84 行`,
+        `<span class="c-g">●</span> <span class="c-w">Update</span>(relay/heartbeat.go)`,
+        `  <span class="c-d">⎿</span> 已更新 1 处：<span class="c-r">- HeartbeatTimeout = 30 * time.Second</span>`,
+        `  <span class="c-d">⎿</span>              <span class="c-g">+ HeartbeatTimeout = 15 * time.Second</span>`,
+        `<span class="c-g">●</span> <span class="c-w">Write</span>(relay/heartbeat_test.go)`,
+        `  <span class="c-d">⎿</span> 新建 42 行`,
+        `<span class="c-y">●</span> <span class="c-w">Bash</span>(go test ./relay/...)`,
+        `  <span class="c-y">⎿ 需要你的确认：允许执行 go test ./relay/... ？</span> <span class="c-d">(y/n)</span>`,
+      ],
+      afterApprove: [
+        `  <span class="c-d">⎿</span> <span class="c-g">ok</span>   terminalx/relay   <span class="c-d">0.412s</span>`,
+        `<span class="c-claude">●</span> 修改完成。心跳超时已改为 15s，新增 <span class="c-w">TestHeartbeatTimeout</span> 覆盖超时路径。`,
+        `<span class="c-claude">●</span> 要我顺便更新 docs/protocol.md 里的超时说明吗？`,
+        '',
+        `<span class="c-w">&gt;</span> <span class="cursor"></span>`,
+      ],
+      events: [
+        { t: '10:41', s: '会话启动 · claude-opus-5' },
+        { t: '10:52', s: '编辑 relay/heartbeat.go' },
+        { t: '10:58', s: '新建 relay/heartbeat_test.go' },
+        { t: '11:01', s: '等待确认：go test ./relay/...', hot: true },
+      ],
+    },
+    {
+      id: 's2', device: 'office', tool: 'codex', title: 'shop-admin · 升级 React 19', cwd: 'D:\\work\\shop-admin', branch: 'chore/react-19',
+      model: 'gpt-5-codex', state: 'running', started: '09:58', elapsed: '01:05', tokens: '412k', cost: '$3.20', mode: 'workspace-write',
+      pending: null,
+      lines: [
+        L.cmdline('D:\\work\\shop-admin', 'codex'),
+        '',
+        `<span class="c-c">╭</span> <span class="c-w">OpenAI Codex</span> <span class="c-d">· model gpt-5-codex · sandbox: workspace-write · approval: on-request</span>`,
+        `<span class="c-w">›</span> 把项目升级到 React 19，修复所有 deprecated API，保证 tsc 与测试通过`,
+        '',
+        `<span class="c-c">•</span> 扫描 src/ 下 143 个文件，定位 forwardRef / defaultProps / legacy context 用法`,
+        `<span class="c-c">•</span> 更新 package.json：react <span class="c-r">^18.3.1</span> → <span class="c-g">^19.1.0</span>，react-dom 同步`,
+        `<span class="c-c">•</span> 重写 src/hooks/useLegacyContext.tsx（forwardRef → ref prop）`,
+        `<span class="c-c">•</span> 运行 <span class="c-w">pnpm tsc --noEmit</span> … <span class="c-y">12 个错误</span>`,
+        `<span class="c-c">•</span> 修复 src/components/Table.tsx:88 · Modal.tsx:41 · Form.tsx:120`,
+        `<span class="c-c">•</span> 运行 <span class="c-w">pnpm tsc --noEmit</span> … <span class="c-y">3 个错误</span>`,
+        `<span class="spin">◐</span> 修复 src/pages/Orders/index.tsx:212 …`,
+      ],
+      events: [
+        { t: '09:58', s: '会话启动 · gpt-5-codex' },
+        { t: '10:12', s: '修改 package.json' },
+        { t: '10:40', s: 'tsc：12 → 3 个错误' },
+        { t: '11:02', s: '运行中：修复 Orders/index.tsx' },
+      ],
+    },
+    {
+      id: 's3', device: 'office', tool: 'grok', title: 'docs-site · 修复 CI 构建', cwd: 'D:\\work\\docs-site', branch: 'main',
+      model: 'grok-4', state: 'waiting', started: '10:20', elapsed: '00:43', tokens: '61k', cost: '$0.42', mode: '逐条确认',
+      pending: { kind: 'question', label: '需要你回答', cmd: '用 pnpm 替代 npm 重新安装依赖吗？', why: '仓库里同时存在 package-lock.json 与 pnpm-lock.yaml，CI 用 npm ci 报错', since: '15 分钟' },
+      lines: [
+        L.cmdline('D:\\work\\docs-site', 'grok'),
+        '',
+        `<span class="c-w">grok</span> <span class="c-d">›</span> 修复 CI 里的构建失败`,
+        '',
+        `<span class="c-m">◆</span> 读取 .github/workflows/ci.yml`,
+        `<span class="c-m">◆</span> 读取最近一次失败日志（run #482）`,
+        `<span class="c-m">◆</span> 发现：<span class="c-r">npm ci</span> 报错，package-lock.json 与 pnpm-lock.yaml 同时存在且不一致`,
+        `<span class="c-y">?</span> <span class="c-y">用 pnpm 替代 npm 重新安装依赖，并删除 package-lock.json 吗？</span> <span class="c-d">(y/N)</span>`,
+      ],
+      afterApprove: [
+        `<span class="c-m">◆</span> 删除 package-lock.json，更新 ci.yml：<span class="c-w">pnpm install --frozen-lockfile</span>`,
+        `<span class="c-m">◆</span> 本地验证 <span class="c-w">pnpm build</span> … <span class="c-g">通过</span>`,
+        `<span class="c-m">◆</span> 已提交：<span class="c-d">ci: switch to pnpm (2 files)</span>`,
+        `<span class="c-w">grok</span> <span class="c-d">›</span> <span class="cursor"></span>`,
+      ],
+      events: [
+        { t: '10:20', s: '会话启动 · grok-4' },
+        { t: '10:31', s: '读取 CI 失败日志' },
+        { t: '10:48', s: '等待回答：pnpm 替代 npm？', hot: true },
+      ],
+    },
+    {
+      id: 's4', device: 'office', tool: 'shell', title: 'PowerShell', cwd: 'C:\\Users\\jin', branch: '—',
+      model: '—', state: 'idle', started: '08:30', elapsed: '02:33', tokens: '—', cost: '—', mode: '—',
+      pending: null,
+      lines: [
+        L.cmdline('C:\\Users\\jin', 'Get-Process claude,codex,grok | Select Name,CPU,WS'),
+        '',
+        `<span class="c-w">Name     CPU    WS</span>`,
+        `<span class="c-d">----     ---    --</span>`,
+        `claude   132.4  412 MB`,
+        `codex     88.1  380 MB`,
+        `grok      21.7  201 MB`,
+        '',
+        L.prompt('C:\\Users\\jin') + '<span class="cursor"></span>',
+      ],
+      events: [{ t: '08:30', s: '会话启动' }],
+    },
+    {
+      id: 's5', device: 'home', tool: 'minimax', title: 'data-pipeline · ETL 分块提交', cwd: 'C:\\dev\\data-pipeline', branch: 'refactor/chunked-load',
+      model: 'MiniMax-M2', state: 'waiting', started: '10:05', elapsed: '00:58', tokens: '203k', cost: '¥1.10', mode: '逐条确认',
+      pending: { kind: 'write', label: '写入文件', cmd: 'etl/load.py（+38 −12）', why: '把批量写入改成每 5000 行一块提交，失败重试 3 次', since: '6 分钟' },
+      lines: [
+        L.cmdline('C:\\dev\\data-pipeline', 'minimax'),
+        '',
+        `<span class="c-minimax">MiniMax Code</span> <span class="c-d">· MiniMax-M2 · cwd C:\\dev\\data-pipeline</span>`,
+        `<span class="c-w">&gt;</span> 把 load.py 的批量写入改成分块提交，每块 5000 行，失败重试 3 次`,
+        '',
+        `<span class="c-minimax">◇</span> 分析 etl/load.py（212 行）`,
+        `<span class="c-minimax">◇</span> 计划：引入 chunked() 生成器；事务按块提交；失败按块重试`,
+        `<span class="c-minimax">◇</span> 准备写入 etl/load.py <span class="c-g">+38</span> <span class="c-r">−12</span>`,
+        `  <span class="c-y">需要确认：允许写入文件 etl/load.py ？</span> <span class="c-d">[y/n/diff]</span>`,
+      ],
+      afterApprove: [
+        `<span class="c-minimax">◇</span> 已写入 etl/load.py`,
+        `<span class="c-minimax">◇</span> 运行 <span class="c-w">pytest tests/test_load.py</span> … <span class="c-g">9 passed</span>`,
+        `<span class="c-minimax">◇</span> 完成。分块大小可通过环境变量 <span class="c-w">ETL_CHUNK_SIZE</span> 调整。`,
+        `<span class="c-w">&gt;</span> <span class="cursor"></span>`,
+      ],
+      events: [
+        { t: '10:05', s: '会话启动 · MiniMax-M2' },
+        { t: '10:57', s: '等待确认：写入 etl/load.py', hot: true },
+      ],
+    },
+    {
+      id: 's6', device: 'home', tool: 'claude', title: 'blog · 写周报', cwd: 'C:\\dev\\blog', branch: 'main',
+      model: 'claude-sonnet-5', state: 'idle', started: '09:10', elapsed: '00:12', tokens: '34k', cost: '$0.21', mode: '自动接受编辑',
+      pending: null,
+      lines: [
+        L.cmdline('C:\\dev\\blog', 'claude --model sonnet'),
+        '',
+        `<span class="c-w">&gt;</span> 根据本周 git log 写周报到 docs/weekly/2026-W36.md`,
+        '',
+        `<span class="c-g">●</span> <span class="c-w">Bash</span>(git log --since="1 week ago" --oneline)`,
+        `  <span class="c-d">⎿</span> 23 行`,
+        `<span class="c-g">●</span> <span class="c-w">Write</span>(docs/weekly/2026-W36.md)`,
+        `  <span class="c-d">⎿</span> 新建 1,240 字`,
+        `<span class="c-claude">●</span> 周报已写好，包含 4 个模块的进展和下周计划。`,
+        '',
+        `<span class="c-w">&gt;</span> <span class="cursor"></span>`,
+      ],
+      events: [
+        { t: '09:10', s: '会话启动 · claude-sonnet-5' },
+        { t: '09:22', s: '已完成：docs/weekly/2026-W36.md', ok: true },
+      ],
+    },
+  ];
+
+  const state = { current: 's1', ctrl: false, dismissed: {} };
+  const byId = (id) => sessions.find(s => s.id === id);
+  const dev = (id) => devices.find(d => d.id === id);
+  const pendingList = () => sessions.filter(s => s.pending);
+
+  // ---------- rendering ----------
+  function renderSummary() {
+    const running = sessions.filter(s => s.state === 'running').length;
+    const waiting = pendingList().length;
+    const online = devices.filter(d => d.online).length;
+    $('#rail-summary').innerHTML = `
+      <div class="stat ok"><b class="num">${running}</b><span>运行中</span></div>
+      <div class="stat warn"><b class="num">${waiting}</b><span>等待确认</span></div>
+      <div class="stat"><b class="num">${online}<span style="font-size:13px;color:var(--muted)">/${devices.length}</span></b><span>设备在线</span></div>`;
+    $('#count-sessions').textContent = sessions.length;
+    $('#count-inbox').textContent = waiting;
+    $('#count-inbox').classList.toggle('hot', waiting > 0);
+    const badge = $('#badge-inbox');
+    badge.textContent = waiting;
+    badge.hidden = waiting === 0;
+  }
+
+  function renderDevices() {
+    $('#devices').innerHTML = devices.map(d => {
+      const ss = sessions.filter(s => s.device === d.id);
+      const meta = d.online ? `${d.os} · <span class="num">${d.rtt} ms</span>` : `${d.os} · 最后在线 ${d.lastSeen}`;
+      return `<div class="device">
+        <div class="device-head">
+          <span class="os">${d.icon}</span>
+          <div><div class="device-name">${esc(d.name)}</div><div class="device-meta">${meta}</div></div>
+          <span class="device-status ${d.online ? '' : 'off'}" title="${d.online ? '在线' : '离线'}"></span>
+        </div>
+        <div class="sessions">${ss.length ? ss.map(s => `
+          <button class="sess" data-session="${s.id}" aria-current="${s.id === state.current}">
+            <span class="tool ${s.tool}">${TOOL_SHORT[s.tool]}</span>
+            <span><span class="name">${esc(s.title)}</span><span class="sub">${TOOL_LABEL[s.tool]} · ${s.model}</span></span>
+            <span class="pill ${s.state}">${STATE_LABEL[s.state]}</span>
+          </button>`).join('') : `<div class="inbox-empty" style="padding:6px 8px 10px;text-align:left">离线设备。上线后会话自动恢复。</div>`}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderTabs() {
+    $('#tabs').innerHTML = sessions.filter(s => s.device === byId(state.current).device).map(s => `
+      <button class="tab" role="tab" aria-selected="${s.id === state.current}" data-session="${s.id}">
+        <span class="tool ${s.tool}">${TOOL_SHORT[s.tool]}</span>${esc(s.title.split(' · ')[0])}<span class="st ${s.state}" aria-label="${STATE_LABEL[s.state]}"></span>
+      </button>`).join('') + `<button class="tab add" id="tab-add" aria-label="新建会话">＋</button>`;
+  }
+
+  function renderTerminal(animateFrom) {
+    const s = byId(state.current);
+    const d = dev(s.device);
+    $('#term-status').innerHTML = `
+      <span class="live">● 已连接</span>
+      <span>${esc(d.name)} › ${TOOL_LABEL[s.tool]}</span>
+      <span>${esc(s.cwd)}</span>
+      <span class="buf">滚动缓冲 <span class="num">2,400</span> 行 · 会话在被控端常驻，关掉浏览器也不会断</span>`;
+    const term = $('#term');
+    term.innerHTML = s.lines.map((l, i) => `<span class="ln${animateFrom != null && i >= animateFrom ? ' enter' : ''}">${l || '&nbsp;'}</span>`).join('');
+    term.scrollTop = term.scrollHeight;
+    renderApproval();
+  }
+
+  function renderApproval() {
+    const s = byId(state.current);
+    const box = $('#approval');
+    if (!s.pending) { box.hidden = true; box.innerHTML = ''; return; }
+    const p = s.pending;
+    const isQ = p.kind === 'question';
+    box.hidden = false;
+    box.innerHTML = `
+      <span class="icon" aria-hidden="true">${isQ ? '?' : '!'}</span>
+      <div>
+        <div class="what">${TOOL_LABEL[s.tool]} ${p.label}：<code>${esc(p.cmd)}</code></div>
+        <div class="why">${esc(p.why)} · 已等待 ${p.since}</div>
+        ${p.rememberHint ? `<label class="remember"><input type="checkbox" id="remember"> ${esc(p.rememberHint)}</label>` : ''}
+      </div>
+      <div class="actions">
+        <button class="btn ok" data-approve="${s.id}">${isQ ? '回答 y' : '允许'} <span class="kbd" style="border-color:rgba(0,0,0,.25);background:rgba(0,0,0,.15);color:inherit">y</span></button>
+        <button class="btn danger" data-deny="${s.id}">${isQ ? '回答 n' : '拒绝'}</button>
+      </div>`;
+  }
+
+  function renderSide() {
+    const s = byId(state.current);
+    const d = dev(s.device);
+    $('#session-kv').innerHTML = `
+      <dt>设备</dt><dd>${esc(d.name)}</dd>
+      <dt>工具</dt><dd><span class="tool ${s.tool}" style="width:18px;height:18px;font-size:10px;vertical-align:-4px;margin-right:6px">${TOOL_SHORT[s.tool]}</span>${TOOL_LABEL[s.tool]}</dd>
+      <dt>模型</dt><dd><code>${esc(s.model)}</code></dd>
+      <dt>目录</dt><dd><code title="${esc(s.cwd)}">${esc(s.cwd)}</code></dd>
+      <dt>分支</dt><dd><code>${esc(s.branch)}</code></dd>
+      <dt>状态</dt><dd><span class="pill ${s.state}">${STATE_LABEL[s.state]}</span></dd>
+      <dt>权限</dt><dd>${esc(s.mode)}</dd>
+      <dt>已运行</dt><dd class="num mono">${s.elapsed}<span style="color:var(--muted)"> · 自 ${s.started}</span></dd>
+      <dt>用量</dt><dd class="num mono">${s.tokens} tokens<span style="color:var(--muted)"> · ${s.cost}</span></dd>`;
+    $('#events').innerHTML = s.events.map(e => `<div class="ev${e.hot ? ' hot' : ''}${e.ok ? ' ok' : ''}"><time>${e.t}</time><span>${esc(e.s)}</span></div>`).join('');
+  }
+
+  function renderInboxMini() {
+    const list = pendingList();
+    $('#inbox-mini').innerHTML = list.length ? list.map(s => `
+      <button class="inbox-item" data-session="${s.id}">
+        <span class="tool ${s.tool}">${TOOL_SHORT[s.tool]}</span>
+        <span>
+          <div class="where">${esc(dev(s.device).name)} · ${esc(s.title)}</div>
+          <div class="ask">${s.pending.label}：<code>${esc(s.pending.cmd)}</code></div>
+          <div class="wait">已等待 ${s.pending.since}</div>
+        </span>
+      </button>`).join('') : `<div class="inbox-empty">没有待处理的请求。agent 都在忙自己的事。</div>`;
+  }
+
+  function renderInboxFull() {
+    const list = pendingList();
+    $('#inbox-full').innerHTML = list.length ? list.map(s => `
+      <div class="inbox-row">
+        <div class="dev"><b>${esc(dev(s.device).name)}</b><small><span class="tool ${s.tool}" style="width:16px;height:16px;font-size:9px;vertical-align:-3px;margin-right:4px">${TOOL_SHORT[s.tool]}</span>${esc(s.title)}</small></div>
+        <div class="req"><span class="kind">${TOOL_LABEL[s.tool]} · ${s.pending.label}</span><span><code>${esc(s.pending.cmd)}</code></span><span class="kind">${esc(s.pending.why)}</span></div>
+        <div class="wait">${s.pending.since}</div>
+        <div class="ops">
+          <button class="btn ok sm" data-approve="${s.id}">${s.pending.kind === 'question' ? '回答 y' : '允许'}</button>
+          <button class="btn danger sm" data-deny="${s.id}">${s.pending.kind === 'question' ? '回答 n' : '拒绝'}</button>
+          <button class="btn sm" data-open="${s.id}">打开终端</button>
+        </div>
+      </div>`).join('') : `<div class="inbox-empty">收件箱已清空。</div>`;
+  }
+
+  function renderPhone() {
+    const list = pendingList();
+    const notifs = list.slice(0, 2).map(s => `
+      <div class="notif">
+        <div class="head"><span class="app">tX</span>terminalX · ${esc(dev(s.device).name)}<time>${s.pending.since}前</time></div>
+        <div class="title">${TOOL_LABEL[s.tool]} ${s.pending.label}</div>
+        <div class="body"><code>${esc(s.pending.cmd)}</code><br>${esc(s.pending.why)}</div>
+        <div class="acts"><button class="btn ok sm" data-approve="${s.id}">${s.pending.kind === 'question' ? '回答 y' : '允许'}</button><button class="btn danger sm" data-deny="${s.id}">${s.pending.kind === 'question' ? '回答 n' : '拒绝'}</button><button class="btn sm" data-open="${s.id}">查看</button></div>
+      </div>`);
+    const done = Object.keys(state.dismissed).slice(-1).map(id => {
+      const s = byId(id);
+      return `<div class="notif done quiet"><div class="head"><span class="app">tX</span>terminalX · ${esc(dev(s.device).name)}<time>刚刚</time></div><div class="title">已${state.dismissed[id] === 'deny' ? '拒绝' : '允许'} · ${TOOL_LABEL[s.tool]} 继续运行</div><div class="body">${esc(s.title)}</div></div>`;
+    });
+    const quiet = list.length > 2 ? `<div class="notif quiet"><div class="head"><span class="app">tX</span>terminalX<time>合并</time></div><div class="body">还有 ${list.length - 2} 条等待确认</div></div>` : '';
+    $('#phone-notifs').innerHTML = `<div style="display:grid;gap:10px">${done.join('')}${notifs.join('')}${quiet}</div>` || '';
+
+    const s = byId(state.current);
+    const sorted = [...sessions].sort((a, b) => (b.pending ? 1 : 0) - (a.pending ? 1 : 0));
+    $('#phone-app').innerHTML = `
+      <div class="app-head"><h3>会话</h3><div class="seg"><span class="on">全部 ${sessions.length}</span><span>等待 ${list.length}</span></div></div>
+      <div class="app-list">
+        ${sorted.slice(0, 3).map(x => `
+          <div class="app-sess${x.pending ? ' hot' : ''}">
+            <span class="tool ${x.tool}">${TOOL_SHORT[x.tool]}</span>
+            <span><div class="n">${esc(x.title)}</div><div class="m">${esc(dev(x.device).name)} · ${TOOL_LABEL[x.tool]}</div></span>
+            <span class="pill ${x.state}">${STATE_LABEL[x.state]}</span>
+          </div>`).join('')}
+        <div class="app-term" style="border:1px solid #28313D;border-radius:12px;overflow:hidden;min-height:260px">
+          <div class="bar"><span class="back">‹</span><span class="tool ${s.tool}" style="width:18px;height:18px;font-size:10px">${TOOL_SHORT[s.tool]}</span><span>${esc(s.title.split(' · ')[0])}</span><span class="pill ${s.state}" style="margin-left:auto">${STATE_LABEL[s.state]}</span></div>
+          <div class="term">${s.lines.slice(-7).map(l => `<span class="ln">${l || '&nbsp;'}</span>`).join('')}</div>
+          <div class="app-keys">
+            <div class="row">
+              <button class="key y" data-approve="${s.id}" ${s.pending ? '' : 'disabled'}>y 允许</button>
+              <button class="key n" data-deny="${s.id}" ${s.pending ? '' : 'disabled'}>n 拒绝</button>
+              <button class="key">Esc</button><button class="key">↑</button><button class="key">↓</button><button class="key">Tab</button>
+            </div>
+            <div class="compose"><input type="text" placeholder="给 ${TOOL_LABEL[s.tool]} 下一句指令…" aria-label="手机端输入"><button class="btn primary sm">发送</button></div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderAll(animateFrom) {
+    renderSummary(); renderDevices(); renderTabs(); renderTerminal(animateFrom); renderSide(); renderInboxMini(); renderInboxFull(); renderPhone();
+  }
+
+  // ---------- actions ----------
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  function showScreen(name) {
+    $$('.screen').forEach(s => { s.hidden = s.id !== `screen-${name}`; });
+    $$('.proto-tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.screen === name)));
+    window.scrollTo({ top: 0 });
+  }
+
+  function select(id) {
+    state.current = id;
+    renderAll();
+  }
+
+  function decide(id, ok) {
+    const s = byId(id);
+    if (!s.pending) return;
+    const p = s.pending;
+    const remembered = $('#remember') && $('#remember').checked;
+    s.pending = null;
+    s.events.push({ t: '11:03', s: `${ok ? '已允许' : '已拒绝'}：${p.cmd}${remembered ? '（本会话内记住）' : ''}`, ok });
+    state.dismissed[id] = ok ? 'ok' : 'deny';
+    const from = s.lines.length;
+    if (ok) {
+      s.state = 'running';
+      s.lines.push(`<span class="c-d">[terminalX · 11:03 从手机/Web 允许${remembered ? '，本会话内 go test 自动允许' : ''}]</span> y`);
+      const extra = s.afterApprove || [`  <span class="c-d">⎿</span> 已允许，继续执行…`, `<span class="c-w">&gt;</span> <span class="cursor"></span>`];
+      let i = 0;
+      const step = () => {
+        if (i < extra.length) {
+          s.lines.push(extra[i++]);
+          if (i === extra.length) s.state = 'idle';
+          renderAll(s.lines.length - 1);
+          setTimeout(step, 550);
+        }
+      };
+      setTimeout(step, 450);
+      toast(`已允许 · ${TOOL_LABEL[s.tool]} 继续运行`);
+    } else {
+      s.state = 'idle';
+      s.lines.push(`<span class="c-d">[terminalX · 11:03 从手机/Web 拒绝]</span> n`);
+      s.lines.push(`  <span class="c-d">⎿</span> <span class="c-r">已拒绝</span>。等待你的下一条指令。`);
+      s.lines.push(`<span class="c-w">&gt;</span> <span class="cursor"></span>`);
+      toast(`已拒绝 · ${TOOL_LABEL[s.tool]} 等待新指令`);
+    }
+    if (state.current !== id) state.current = id;
+    renderAll(from);
+  }
+
+  function sendInput(text) {
+    const s = byId(state.current);
+    if (!text.trim()) return;
+    if (s.pending && /^(y|yes|n|no)$/i.test(text.trim())) { decide(s.id, /^y/i.test(text.trim())); return; }
+    // replace trailing cursor line
+    if (s.lines.length && /class="cursor"/.test(s.lines[s.lines.length - 1])) s.lines.pop();
+    const from = s.lines.length;
+    if (s.tool === 'shell') {
+      s.lines.push(L.cmdline(s.cwd, text));
+      s.lines.push(`<span class="c-d">（示例原型：命令已发送到 ${esc(dev(s.device).name)} 的 PowerShell）</span>`);
+      s.lines.push(L.prompt(s.cwd) + '<span class="cursor"></span>');
+    } else {
+      s.lines.push(`<span class="c-w">&gt;</span> ${esc(text)}`);
+      s.state = 'running';
+      s.lines.push(`<span class="spin">◐</span> ${TOOL_LABEL[s.tool]} 正在处理…`);
+      setTimeout(() => {
+        s.lines.pop();
+        s.lines.push(`<span class="c-g">●</span> 收到。（示例原型：这里会出现 ${TOOL_LABEL[s.tool]} 的实际输出）`);
+        s.lines.push(`<span class="c-w">&gt;</span> <span class="cursor"></span>`);
+        s.state = 'idle';
+        renderAll(s.lines.length - 2);
+      }, 1400);
+    }
+    renderAll(from);
+  }
+
+  // ---------- events ----------
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-screen],[data-goto],[data-session],[data-approve],[data-deny],[data-open],[data-key],#btn-send,#btn-kill,#btn-new-session,#tab-add,.cmdk');
+    if (!t) return;
+    if (t.dataset.screen) return showScreen(t.dataset.screen);
+    if (t.dataset.goto) return showScreen(t.dataset.goto);
+    if (t.dataset.approve) return decide(t.dataset.approve, true);
+    if (t.dataset.deny) return decide(t.dataset.deny, false);
+    if (t.dataset.open) { select(t.dataset.open); return showScreen('console'); }
+    if (t.dataset.session) return select(t.dataset.session);
+    if (t.id === 'btn-send') { const inp = $('#term-input'); sendInput(inp.value); inp.value = ''; inp.focus(); return; }
+    if (t.dataset.key) {
+      const k = t.dataset.key;
+      const s = byId(state.current);
+      if (k === 'Ctrl') { state.ctrl = !state.ctrl; t.classList.toggle('on', state.ctrl); return; }
+      if (k === 'y' && s.pending) return decide(s.id, true);
+      if (k === 'n' && s.pending) return decide(s.id, false);
+      if (state.ctrl && k === 'C') { state.ctrl = false; $('#key-ctrl').classList.remove('on'); toast('已发送 Ctrl+C'); return; }
+      if (k === '/') { const inp = $('#term-input'); inp.value = inp.value + '/'; inp.focus(); return; }
+      toast(`已发送 ${k}`);
+      return;
+    }
+    if (t.id === 'btn-kill') { toast('示例原型：结束会话需要二次确认'); return; }
+    if (t.id === 'btn-new-session' || t.id === 'tab-add') { toast('示例原型：选择设备 → 选择工具（claude / codex / grok / minimax / shell）→ 选择目录'); return; }
+    if (t.classList.contains('cmdk')) { toast('示例原型：⌘K 命令面板，可跳转到任意设备或会话'); return; }
+  });
+  $('#term-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { sendInput(e.target.value); e.target.value = ''; } });
+
+  // fake QR (deterministic pattern, decorative)
+  (function qr() {
+    const el = $('#qr'); if (!el) return;
+    let seed = 7;
+    const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    let html = '';
+    for (let y = 0; y < 21; y++) for (let x = 0; x < 21; x++) {
+      const finder = (x < 7 && y < 7) || (x > 13 && y < 7) || (x < 7 && y > 13);
+      let on;
+      if (finder) {
+        const fx = x < 7 ? x : x - 14, fy = y < 7 ? y : y - 14;
+        on = fx === 0 || fy === 0 || fx === 6 || fy === 6 || (fx >= 2 && fx <= 4 && fy >= 2 && fy <= 4);
+      } else on = rnd() > 0.55;
+      html += `<i class="${on ? 'on' : ''}"></i>`;
+    }
+    el.innerHTML = html;
+  })();
+
+  renderAll();
+})();
+</script>
