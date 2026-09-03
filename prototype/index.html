@@ -26,7 +26,7 @@
     --info-soft: rgba(93, 169, 255, .14);
     --term-bg: #0A0D11;
     --term-fg: #D7DEE7;
-    --term-dim: #6B7685;
+    --term-dim: #7D8896;
     --t-green: #79E29A;
     --t-yellow: #F2D479;
     --t-blue: #7FB3FF;
@@ -50,13 +50,13 @@
       --text: #1B2330;
       --text-2: #3D4856;
       --muted: #5E6B7C;
-      --accent: #C4740E;
-      --accent-hover: #A96108;
+      --accent: #A9620A;
+      --accent-hover: #8F5208;
       --on-accent: #FFFFFF;
       --accent-soft: rgba(196, 116, 14, .12);
-      --ok: #1E9E63;
-      --warn: #A8780A;
-      --err: #D14343;
+      --ok: #15804F;
+      --warn: #8A6200;
+      --err: #C03535;
       --info: #2F6FD6;
       --ok-soft: rgba(30, 158, 99, .12);
       --warn-soft: rgba(168, 120, 10, .14);
@@ -76,13 +76,13 @@
     --text: #1B2330;
     --text-2: #3D4856;
     --muted: #5E6B7C;
-    --accent: #C4740E;
-    --accent-hover: #A96108;
+    --accent: #A9620A;
+    --accent-hover: #8F5208;
     --on-accent: #FFFFFF;
     --accent-soft: rgba(196, 116, 14, .12);
-    --ok: #1E9E63;
-    --warn: #A8780A;
-    --err: #D14343;
+    --ok: #15804F;
+    --warn: #8A6200;
+    --err: #C03535;
     --info: #2F6FD6;
     --ok-soft: rgba(30, 158, 99, .12);
     --warn-soft: rgba(168, 120, 10, .14);
@@ -170,10 +170,10 @@
   .tool.codex { background: rgba(120, 200, 190, .16); color: #7ED0C4; }
   .tool.grok { background: rgba(200, 200, 210, .16); color: #B8BFCB; }
   .tool.shell { background: rgba(93, 169, 255, .16); color: var(--info); }
-  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .tool.grok { color: #4A5260; } :root:not([data-theme="dark"]) .tool.codex { color: #1F8C7C; } :root:not([data-theme="dark"]) .tool.claude { color: #B85A34; } }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .tool.grok { color: #4A5260; } :root:not([data-theme="dark"]) .tool.codex { color: #176F63; } :root:not([data-theme="dark"]) .tool.claude { color: #9E4A26; } }
   :root[data-theme="light"] .tool.grok { color: #4A5260; }
-  :root[data-theme="light"] .tool.codex { color: #1F8C7C; }
-  :root[data-theme="light"] .tool.claude { color: #B85A34; }
+  :root[data-theme="light"] .tool.codex { color: #176F63; }
+  :root[data-theme="light"] .tool.claude { color: #9E4A26; }
 
   .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--panel-2); color: var(--text); font-weight: 500; line-height: 20px; white-space: nowrap; }
   .btn:hover { background: var(--panel-3); }
@@ -239,11 +239,14 @@
   .device-status { margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
   .device-status.off { background: var(--border-strong); }
   .sessions { display: grid; padding: 0 6px 8px; gap: 2px; }
-  .sess { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; border: 1px solid transparent; background: transparent; text-align: left; width: 100%; }
+  .sess { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; column-gap: 8px; row-gap: 1px; padding: 6px 8px; border-radius: 6px; border: 1px solid transparent; background: transparent; text-align: left; width: 100%; }
+  .sess .tool { grid-row: 1 / span 2; }
+  .sess .name { grid-column: 2; grid-row: 1; }
+  .sess .pill { grid-column: 3; grid-row: 1; }
+  .sess .sub { grid-column: 2 / span 2; grid-row: 2; }
   .sess:hover { background: var(--panel-2); }
   .sess[aria-current="true"] { background: var(--panel-3); border-color: var(--border-strong); }
-  .sess > span:nth-child(2) { min-width: 0; display: grid; }
-  .sess .name { display: block; font-size: 13px; line-height: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sess .name { display: block; min-width: 0; font-size: 13px; line-height: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sess .sub { display: block; font-size: 11px; color: var(--muted); line-height: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sess .pill { font-size: 11px; padding: 0 7px; }
   .sess .pill::before { width: 5px; height: 5px; }
@@ -266,9 +269,9 @@
   .tab .st.waiting, .tab .st.suspect { background: var(--warn); }
   .tab .st.idle { background: var(--border-strong); }
   .tab .st.error { background: var(--err); }
-  .tab[aria-selected="true"] { background: var(--term-bg); color: var(--text); border-color: var(--border); margin-bottom: -1px; }
+  .tab[aria-selected="true"] { background: var(--term-bg); color: var(--term-fg); border-color: var(--border); margin-bottom: -1px; }
   .tab.add { color: var(--muted); }
-  .term-status { display: flex; align-items: center; gap: 12px; padding: 6px 10px 6px 14px; font-size: 12px; color: var(--muted); background: var(--term-bg); border-bottom: 1px solid var(--border); font-family: var(--font-mono); overflow-x: auto; white-space: nowrap; }
+  .term-status { display: flex; align-items: center; gap: 12px; padding: 6px 10px 6px 14px; font-size: 12px; color: var(--term-dim); background: var(--term-bg); border-bottom: 1px solid var(--border); font-family: var(--font-mono); overflow-x: auto; white-space: nowrap; }
   .sig { display: inline-flex; align-items: center; gap: 5px; }
   .sig::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
   .sig.warn::before { background: var(--warn); }
@@ -298,6 +301,7 @@
   .approval.suspect .icon { background: transparent; border: 2px dashed var(--warn); color: var(--warn); }
   .approval .what { font-weight: 600; line-height: 18px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
   .approval .what code { background: rgba(0, 0, 0, .25); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+  .approval .tag { background: var(--panel); }
   .approval .why { font-size: 12px; color: var(--text-2); line-height: 16px; }
   .approval .mode { font-size: 12px; color: var(--text-2); line-height: 16px; margin-top: 3px; }
   .approval .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
@@ -342,7 +346,8 @@
   .inbox-row { display: grid; grid-template-columns: 190px minmax(0, 1fr) 96px auto; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
   .inbox-row:last-child { border-bottom: 0; }
   .inbox-row.head { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--panel-2); border-radius: var(--radius) var(--radius) 0 0; }
-  .inbox-row.done { opacity: .65; }
+  .inbox-row.done .dev b { color: var(--text-2); font-weight: 500; }
+  .inbox-row.done .req code { color: var(--text-2); }
   .inbox-row .dev { display: grid; gap: 2px; }
   .inbox-row .dev b { font-weight: 600; }
   .inbox-row .dev small { color: var(--muted); }
@@ -352,7 +357,8 @@
   .inbox-row .wait { color: var(--warn); font-family: var(--font-mono); font-size: 12px; }
   .inbox-row.done .wait { color: var(--muted); font-family: var(--font-ui); }
   .inbox-row .ops { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-  @media (max-width: 800px) { .inbox-row { grid-template-columns: minmax(0, 1fr); } .inbox-row.head { display: none; } .inbox-row .ops { justify-content: flex-start; } }
+  @media (max-width: 1180px) { .inbox-row { grid-template-columns: 150px minmax(0, 1fr) 72px; } .inbox-row.head span:last-child { display: none; } .inbox-row .ops { grid-column: 1 / -1; justify-content: flex-start; } }
+  @media (max-width: 800px) { .inbox-row { grid-template-columns: minmax(0, 1fr); } .inbox-row.head { display: none; } }
   .policy { display: grid; gap: 10px; padding: 12px 16px; font-size: 13px; }
   .policy li { color: var(--text-2); display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: start; line-height: 18px; }
   .policy code { font-size: 12px; background: var(--panel-3); padding: 0 5px; border-radius: 4px; }
@@ -364,7 +370,12 @@
   .phones { display: flex; gap: 32px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
   .phone-wrap { display: grid; gap: 10px; justify-items: center; }
   .phone-wrap > p { color: var(--muted); font-size: 13px; text-align: center; max-width: 36ch; }
-  .phone { width: 340px; height: 700px; border-radius: 40px; background: #0B0E13; border: 6px solid #1E2530; box-shadow: var(--shadow), inset 0 0 0 1px #2A3341; overflow: hidden; position: relative; color: #E8ECF1; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+  .phone { width: 340px; height: 700px; border-radius: 40px; background: #0B0E13; border: 6px solid #1E2530; box-shadow: var(--shadow), inset 0 0 0 1px #2A3341; overflow: hidden; position: relative; color: #E8ECF1; display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+    /* 样机永远是深色屏幕，不随页面主题变化 */
+    --panel: #151A21; --panel-2: #1B222B; --panel-3: #222A34; --border: #28313D; --border-strong: #36414F; --text: #E8ECF1; --text-2: #B9C2CE; --muted: #8A96A6;
+    --accent: #F0A030; --accent-hover: #F7B44A; --on-accent: #1A1200; --accent-soft: rgba(240, 160, 48, .14);
+    --ok: #3ECF8E; --warn: #F5C542; --err: #F26D6D; --info: #5DA9FF; --ok-soft: rgba(62, 207, 142, .14); --warn-soft: rgba(245, 197, 66, .16); --err-soft: rgba(242, 109, 109, .14); --info-soft: rgba(93, 169, 255, .14); }
+  .phone .tool.grok { color: #B8BFCB; } .phone .tool.codex { color: #7ED0C4; } .phone .tool.claude { color: #E4906E; }
   .phone .notch { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 110px; height: 28px; background: #000; border-radius: 999px; z-index: 2; }
   .phone .sb { display: flex; justify-content: space-between; padding: 14px 22px 0; font-size: 13px; font-weight: 600; font-family: var(--font-mono); }
   .lock { display: grid; align-content: start; gap: 18px; padding: 44px 16px 16px; background: radial-gradient(120% 80% at 50% 0%, #1B2A3F 0%, #0B0E13 60%); overflow: auto; }
@@ -421,7 +432,8 @@
   .step-body { padding: 14px 16px; display: grid; gap: 12px; align-content: start; }
   .step-body p { color: var(--text-2); max-width: 48ch; }
   .cmd { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; background: var(--term-bg); color: var(--term-fg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-family: var(--font-mono); font-size: 12.5px; overflow-x: auto; }
-  .cmd > span { white-space: nowrap; }
+  .cmd > span { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .cmd .btn { align-self: start; }
   .cmd .c-d { user-select: none; }
   .paircode { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; padding: 14px; background: var(--panel-2); border: 1px dashed var(--border-strong); border-radius: var(--radius); }
   .qr { width: 116px; height: 116px; display: grid; grid-template-columns: repeat(21, 1fr); background: #FFFFFF; padding: 6px; border-radius: 6px; }
@@ -453,8 +465,8 @@
   .arch-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
   @media (max-width: 1000px) { .arch-grid { grid-template-columns: minmax(0, 1fr); } }
   .list { display: grid; gap: 8px; padding: 12px 16px; font-size: 13px; }
-  .list li { color: var(--text-2); display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 10px; }
-  .list li::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-top: 7px; }
+  .list li { color: var(--text-2); position: relative; padding-left: 18px; }
+  .list li::before { content: ""; position: absolute; left: 0; top: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
   .list.out li::before { background: var(--border-strong); }
   .list.warn li::before { background: var(--warn); }
   .list code { font-size: 12px; background: var(--panel-3); padding: 0 5px; border-radius: 4px; }
@@ -741,12 +753,12 @@
             <text x="830" y="102" text-anchor="middle" fill="currentColor" stroke="none" font-size="11">ConPTY</text>
             <text x="565" y="134" text-anchor="middle" fill="currentColor" stroke="none" font-size="11" opacity=".75">PTY 字节流</text>
 
-            <path d="M915 190 v50 H130 v-50" marker-end="url(#arr)"/>
-            <text x="520" y="262" text-anchor="middle" fill="currentColor" stroke="none" font-size="11">状态事件：Claude http hooks · Codex hooks.json / notify · statusLine 两个数字 → 登记 + 推送（不自动决策）</text>
+            <path d="M915 190 v40 H130 v-40" marker-end="url(#arr)"/>
+            <text x="520" y="248" text-anchor="middle" fill="currentColor" stroke="none" font-size="11">状态事件：Claude http hooks · Codex hooks.json / notify · statusLine 两个数字 → 登记 + 推送（不自动决策）</text>
 
-            <path d="M90 190 v90 H750 v-90" stroke-dasharray="3 4" opacity=".6"/>
-            <text x="420" y="300" text-anchor="middle" fill="currentColor" stroke="none" font-size="11" opacity=".7">局域网 / Tailscale 内直连（可选，第二阶段）</text>
-            <text x="500" y="330" text-anchor="middle" fill="currentColor" stroke="none" font-size="11" opacity=".7">hooks 只在 127.0.0.1 回环收；被控端无入站端口</text>
+            <path d="M90 190 v100 H770 v-100" stroke-dasharray="3 4" opacity=".6"/>
+            <text x="420" y="308" text-anchor="middle" fill="currentColor" stroke="none" font-size="11" opacity=".7">局域网 / Tailscale 内直连（可选，第二阶段）</text>
+            <text x="500" y="334" text-anchor="middle" fill="currentColor" stroke="none" font-size="11" opacity=".7">hooks 只在 127.0.0.1 回环收；被控端无入站端口</text>
           </g>
         </svg>
         <figcaption>第一阶段只做实线部分。被控端以登录用户身份运行，因为 AI CLI 的凭据都在用户目录下，而 Windows 没有让系统服务替登录用户开 ConPTY 的官方路径。</figcaption>
@@ -1046,8 +1058,9 @@
         <div class="sessions">${ss.length ? ss.map(s => `
           <button class="sess" data-session="${s.id}" aria-current="${s.id === state.current}">
             <span class="tool ${s.tool}">${TOOL_SHORT[s.tool]}</span>
-            <span><span class="name">${esc(s.title)}</span><span class="sub">${TOOL_LABEL[s.tool]} · ${esc(s.model)}</span></span>
+            <span class="name">${esc(s.title)}</span>
             <span class="pill ${s.state}">${STATE_LABEL[s.state]}</span>
+            <span class="sub">${TOOL_LABEL[s.tool]} · ${esc(s.model)}</span>
           </button>`).join('') : `<div class="inbox-empty" style="padding:6px 8px 10px;text-align:left">第一阶段只有 Windows 被控端。</div>`}
         </div>
       </div>`;
@@ -1237,15 +1250,21 @@
 
   function select(id) { state.current = id; renderAll(); }
 
+  function dropCursor(s) {
+    if (s.lines.length && /class="cursor"/.test(s.lines[s.lines.length - 1])) s.lines.pop();
+  }
+
   function decide(id, ok) {
     const s = byId(id);
     if (!s.pending) return;
     const p = s.pending;
     s.pending = null;
-    const via = p.level === 'A' ? 'hook 决定' : (p.level === 'B' ? '按键' : '按键（疑似）');
-    const text = ok ? `已允许（${via}）` : `已拒绝（${via}）`;
+    const via = p.level === 'A' ? 'hook 决定' : (p.level === 'B' ? '按键' : '键条按键');
+    // 疑似（C 级）没有审批语义：只是用户手动按了一个键
+    const text = p.level === 'C' ? `已按键 ${ok ? 'y' : 'n'}（疑似，未经审批）` : (ok ? `已允许（${via}）` : `已拒绝（${via}）`);
     s.events.push({ t: '11:03', s: `${text}：${p.cmd}`, ok });
     state.dismissed[id] = { text, level: p.level, cmd: p.cmd };
+    dropCursor(s);
     const from = s.lines.length;
     if (ok) {
       s.state = 'running';
@@ -1281,7 +1300,8 @@
     const s = byId(state.current);
     if (!text.trim()) return;
     if (s.pending && /^(y|yes|1|n|no|3)$/i.test(text.trim())) { decide(s.id, /^(y|yes|1)$/i.test(text.trim())); return; }
-    if (s.lines.length && /class="cursor"/.test(s.lines[s.lines.length - 1])) s.lines.pop();
+    if (s.pending) { toast('该会话正在等你确认：先允许 / 拒绝，或用键条按 Esc 取消对话框'); return; }
+    dropCursor(s);
     const from = s.lines.length;
     if (s.tool === 'shell') {
       s.lines.push(L.cmdline(s.cwd, text));
@@ -1305,16 +1325,19 @@
   function toggleMode(id) {
     const s = byId(id);
     s.approvalMode = s.approvalMode === 'remote' ? 'notify' : 'remote';
-    if (s.pending) s.pending.level = s.approvalMode === 'remote' ? 'A' : 'B';
+    // 只影响之后的审批；当前挂着的对话框保持原来的处理方式
     toast(s.approvalMode === 'remote' ? '已开启远程优先（需 Passkey 重认证，10 分钟内免）：下一次审批会挂起等你，终端内对话框暂不显示' : '已切回通知模式：终端内对话框照常，这里只发按键');
     renderAll();
   }
 
   function unstick(kind) {
     const s = byId(state.current);
-    if (kind === 'ctrlc') { s.lines.push(`<span class="c-d">^C [terminalX 11:03 远程 Ctrl-C]</span>`); toast('已发送 Ctrl-C（结束当前 turn，会话仍在）'); }
-    if (kind === 'restart') { s.lines.push(`<span class="c-d">[terminalX 11:03] kill &amp; resume：SIGTERM → ${s.tool === 'codex' ? 'codex resume --last' : 'claude --resume'} …</span>`); toast('示例原型：结束进程并按会话名 resume，滚动缓冲保留'); }
-    renderAll(s.lines.length - 1);
+    dropCursor(s);
+    const from = s.lines.length;
+    const promptLine = s.tool === 'shell' ? L.prompt(s.cwd) + '<span class="cursor"></span>' : `<span class="c-w">&gt;</span> <span class="cursor"></span>`;
+    if (kind === 'ctrlc') { s.lines.push(`<span class="c-d">^C [terminalX 11:03 远程 Ctrl-C]</span>`); s.lines.push(promptLine); toast('已发送 Ctrl-C（结束当前 turn，会话仍在）'); }
+    if (kind === 'restart') { s.lines.push(`<span class="c-d">[terminalX 11:03] kill &amp; resume：Ctrl-C → /exit → 超时 TerminateProcess → ${s.tool === 'codex' ? 'codex resume --last' : 'claude --resume <会话名>'} …</span>`); s.lines.push(promptLine); toast('示例原型：结束进程并按会话名 resume，滚动缓冲保留'); }
+    renderAll(from);
   }
 
   // ---------- events ----------
@@ -1336,8 +1359,10 @@
       if (k === 'Ctrl') { state.ctrl = !state.ctrl; t.classList.toggle('on', state.ctrl); return; }
       if ((k === 'y' || k === '1') && s.pending) return decide(s.id, true);
       if ((k === 'n' || k === '3') && s.pending) return decide(s.id, false);
-      if (state.ctrl && k === 'C') { state.ctrl = false; const kc = $('#key-ctrl'); if (kc) kc.classList.remove('on'); return unstick('ctrlc'); }
-      toast(`已发送按键 ${k} 到 PTY`);
+      const withCtrl = state.ctrl;
+      state.ctrl = false; const kc = $('#key-ctrl'); if (kc) kc.classList.remove('on');
+      if (withCtrl && k === 'C') return unstick('ctrlc');
+      toast(withCtrl ? `已发送 Ctrl-${k} 到 PTY` : `已发送按键 ${k} 到 PTY`);
       return;
     }
     if (t.id === 'btn-kill') { toast('示例原型：结束会话需要二次确认'); return; }
