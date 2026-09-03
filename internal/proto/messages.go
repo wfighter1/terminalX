@@ -196,7 +196,7 @@ type DeviceInfo struct {
 
 // OpenRequest describes a new session (client → agent).
 type OpenRequest struct {
-	Shell          string       `json:"shell"`            // pwsh | powershell | cmd | bash | …
+	Shell          string       `json:"shell"` // pwsh | powershell | cmd | bash | …
 	Cwd            string       `json:"cwd,omitempty"`
 	Tool           string       `json:"tool"`             // claude | codex | grok | shell
 	Name           string       `json:"name,omitempty"`   // session name; mapped to --name for claude

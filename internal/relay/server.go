@@ -199,7 +199,9 @@ func (s *Server) Close() {
 	s.once.Do(func() { close(s.closed) })
 	s.wg.Wait()
 	s.mu.Lock()
-	var conns []interface{ closeNow(websocket.StatusCode, string) }
+	var conns []interface {
+		closeNow(websocket.StatusCode, string)
+	}
 	for _, d := range s.devices {
 		if d.conn != nil {
 			conns = append(conns, d.conn)
