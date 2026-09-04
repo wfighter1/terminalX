@@ -6,9 +6,11 @@
 >
 > **已验证（真机）**：在 Ubuntu 上用真实 Claude Code 2.1.260 跑通了整条审批链路——交互式 PTY 里 claude 请求审批 → PermissionRequest hook 到达本机端点并阻塞 → 远程 `allow` → 终端显示 `Allowed by PermissionRequest hook` 并执行工具（`deny` 同样生效）。这条链路是整个产品的技术前提，此前完全是假设。可复跑：`TX_REAL_CLAUDE=1 go test ./internal/hooks -run TestRealClaudePTYApproval`。
 >
-> **已有**：三端全部实现——协议层、中转 tx-relay（含测试与 Docker 部署）、被控端 tx-agent（PTY 会话常驻、断线补差、hooks 端点、配对、Linux systemd 用户服务 / Windows 任务计划自启）、Web 控制台。约 12,000 行 Go + 1,750 行 TS，76 个测试函数，`go test -race ./...` 全绿，`GOOS=windows/darwin build` 通过，端到端冒烟（配对 → 上线 → 开会话 → 输入回显 → 刷新后快照回放 → 关闭）在 **Linux** 上跑通。
+> **已有**：三端全部实现——协议层、中转 tx-relay（含测试与 Docker 部署）、被控端 tx-agent（PTY 会话常驻、断线补差、hooks 端点、配对、Linux systemd 用户服务 / Windows 任务计划自启）、Web 控制台。约 13,200 行 Go + 1,750 行 TS，86 个测试函数，`go test -race ./...` 全绿，`GOOS=windows/darwin build` 通过，端到端冒烟（配对 → 上线 → 开会话 → 输入回显 → 刷新后快照回放 → 关闭）在 **Linux** 上跑通。
 >
-> **未有**：Windows 与 macOS 上一行代码都没运行过（只交叉编译）；systemd 安装本身未在带 user bus 的机器上执行过；手机零测试；Codex / Grok 仍只用合成 payload 测过。supervisor / ptyhost 双进程、Passkey / TOTP、DPAPI、端到端加密均未实现。25 条验收标准完全通过 4 条、部分通过 7 条、未验证 14 条。
+> **会话真的常驻**：Linux / macOS 上每个会话跑在私有 tmux server 里，agent 被杀、升级或被 systemd 重启后会自动接管，滚动历史一并回灌。真机验证过真实 Claude Code 的 TUI 在接管后重绘并继续接受输入。
+>
+> **未有**：Windows 与 macOS 上一行代码都没运行过（只交叉编译）；Windows 上没有 tmux，会话仍随 agent 一起死（ptyhost 待做）；systemd 安装本身未在带 user bus 的机器上执行过；手机零测试；Codex / Grok 仍只用合成 payload 测过。Passkey / TOTP、DPAPI、端到端加密均未实现。25 条验收标准完全通过 4 条、部分通过 8 条、未验证 13 条。
 >
 > 逐项实现现状与真机验证结论见 [架构文档 §0](docs/04-第一阶段技术架构.md)，验收逐条状态见 [设计文档 §13](docs/02-产品设计.md)，部署见 [deploy/README.md](deploy/README.md)。
 
@@ -63,7 +65,7 @@ terminalX 只做一件事：**只传字节与事件，不传像素。** 一个 W
 
 ## 第一阶段范围
 
-- **Linux 被控端（Ubuntu 等）**：单二进制，`deploy/install-agent.sh` 一条命令安装 → 配对 → 注册 systemd 用户服务（`Restart=always` + lingering，注销后仍在、开机自启），PTY 会话常驻，断线补差
+- **Linux 被控端（Ubuntu 等）**：单二进制，`deploy/install-agent.sh` 一条命令安装 → 配对 → 注册 systemd 用户服务（`Restart=always` + lingering，注销后仍在、开机自启）；会话托管在私有 tmux server 里，**agent 重启也不丢**，断线补差
 - Windows 被控端：单 exe，登录自启（用户态，不是服务），ConPTY 会话常驻，断线补差，重启后一键拉回
 - 自建中转：单二进制 + Docker 一条命令，配对码 + 指纹比对，只存元数据
 - Web 控制台：收件箱首页、设备列表、会话列表、多标签终端、三信号连接状态、远程解卡（Esc / Ctrl-C / kill & resume）
