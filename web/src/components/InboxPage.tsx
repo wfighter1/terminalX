@@ -48,7 +48,7 @@ export default function InboxPage({ onOpenSession }: { onOpenSession: (sid: numb
         <div className="card">
           <div className="card-head">三种卡片，三种动作</div>
           <ul className="policy">
-            <li><span className="tag a">hook 决定</span><span>该会话开启了「远程优先」：Claude Code 的 PermissionRequest hook 挂起等你，你点「允许」就是 hook 的决定。代价：挂起期间终端里的对话框不显示，超时后回落。</span></li>
+            <li><span className="tag a">hook 决定</span><span>该会话开启了「远程优先」：Claude Code 的 PermissionRequest hook 挂起等你，你点「允许」就是 hook 的决定。挂起期间终端里的对话框仍会显示，先答的一方生效；超时后回落。</span></li>
             <li><span className="tag b">按键</span><span>默认「通知模式」：hook 只登记并推送，终端里的对话框照常弹出。你在这里点的是「发送 1 / 发送 3」（Claude）或「发送 y / n」，等同于坐在电脑前按键。Codex 第一阶段只走这条路。</span></li>
             <li><span className="tag c">疑似</span><span>没有 hooks 的工具靠输出停顿加末行提示符推断，低置信。只提示，不自动处理，也不替你按键；卡片只有「打开终端确认」一个按钮。</span></li>
             <li><span className="tag n">规则</span><span>远程权限不高于本地：以 <code>bypassPermissions</code> 启动的会话根本不会触发 hook，因此不会出现在这里。本机答过的请求会自动关闭。</span></li>

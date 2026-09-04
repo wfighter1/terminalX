@@ -13,7 +13,7 @@ export default function SidePanel({ onOpenInbox }: { onOpenInbox: () => void }) 
     if (!cur?.device_id) return;
     const mode = cur.approval_mode === 'remote_first' ? 'notify' : 'remote_first';
     relay.send({ t: 'session.set_mode', device_id: cur.device_id, sid: cur.sid, mode });
-    dispatch({ type: 'toast', text: mode === 'remote_first' ? '已开启远程优先：下一次审批会挂起等你，终端内对话框暂不显示' : '已切回通知模式：终端内对话框照常，这里只发按键' });
+    dispatch({ type: 'toast', text: mode === 'remote_first' ? '已开启远程优先：下一次审批会挂起等你；终端里的对话框仍在，先答的一方生效' : '已切回通知模式：终端内对话框照常，这里只发按键' });
   }
   function closeSession() {
     if (!cur?.device_id) return;

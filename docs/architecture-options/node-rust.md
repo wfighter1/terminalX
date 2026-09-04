@@ -150,7 +150,7 @@ Agent：terminalx-agent pair <uri>
 | 路径 | 机制 | 状态 |
 |---|---|---|
 | A 通知 + 打开终端 | 推送深链；手机进终端按 `1`+Enter 或键条 | **MVP 默认** |
-| B 「远程优先」模式（每会话开关） | hook `timeout` 3600 s 挂起等手机，回 `{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}`（本日核实的真实 schema：`behavior` 取 `allow\|deny`，另有 `updatedInput`/`updatedPermissions`/`message`/`interrupt`） | MVP 可选，UI 明示「开启期间终端内对话框不出现」；`--bg` 会话不可用（#88698） |
+| B 「远程优先」模式（每会话开关） | hook `timeout` 3600 s 挂起等手机，回 `{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}`（本日核实的真实 schema：`behavior` 取 `allow\|deny`，另有 `updatedInput`/`updatedPermissions`/`message`/`interrupt`） | MVP 可选，UI 明示「开启期间终端内对话框不出现」（**2026-09-04 真机推翻：对话框照常出现，先答者胜**）；`--bg` 会话不可用（#88698） |
 | C Channels permission relay | 自建 MCP channel 声明 `claude/channel/permission`，收 `notifications/claude/channel/permission_request`，回 `…/permission {request_id, behavior}`；文档「Both stay live … whichever answer arrives first」 | 研究预览，需 `--dangerously-load-development-channels`；自定义 `ANTHROPIC_BASE_URL` 下是否可用待核实；1.1 spike |
 
 **Codex**：MVP 只做 `notify`（config.toml `notify=[...]`，源码注释本日核实「spawn this program after each completed turn」，payload 形如 `{"type":"agent-turn-complete","turn-id":…}`）+ `hooks.json` 的 `PermissionRequest`（输出 schema 本日核实：`decision.behavior` 仅 `allow|deny`，`updatedInput`/`updatedPermissions`/`interrupt=true` 目前 fail closed）做登记推送 + 打开终端。一键审批走 app-server **unix socket**（README「also supported on Windows」，目录带 current-user-only DACL）作第二客户端收 `item/commandExecution/requestApproval`、回 `accept|acceptForSession|decline|cancel`——1.1 spike；WebSocket 传输「experimental and unsupported」不用。codex #42507（2026-09-03 Open）称 Windows `remote-control start` 报「Unix only」而 daemon README 又称支持 Windows，以实测为准。

@@ -236,7 +236,7 @@ windows.CreateProcess(nil, cmdline, nil, nil, false, windows.EXTENDED_STARTUPINF
 - 官方口径（本日核实 hooks 文档）：hook 默认阻塞执行；`command/http/mcp_tool` 默认超时 **600 s**；超时后「discarding the hook's output… the permission flow proceeds unchanged」；`PermissionRequest` 的回写 schema 是 `hookSpecificOutput.decision.behavior ∈ allow|deny|ask|dontAsk`，**Exit code 2 不生效**。
 - **审批通道两种模式**（红队 3 的核心修正）：
   - 默认 `notify_only`：`PermissionRequest` hook `timeout:10`，Agent 登记 Approval + 推送后 **返回空对象不作决定**，原生对话框照常出现；手机端卡片按钮是「打开终端」+ 键条 `1/2/Enter`。
-  - 每会话可开 `remote_first`：hook `timeout` 设为 3600，Agent 挂起直到 `approval.decide` 到达再回写 `{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}`；UI 明示「开启期间终端内对话框不出现」。
+  - 每会话可开 `remote_first`：hook `timeout` 设为 3600，Agent 挂起直到 `approval.decide` 到达再回写 `{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}`；UI 明示「开启期间终端内对话框不出现」。（**2026-09-04 真机推翻：对话框照常出现，先答者胜；以 `docs/04` §0.4 与 `docs/02` §8 为准**）
   - 实验路径：官方 Channels permission relay（`notifications/claude/channel/permission_request` → `notifications/claude/channel/permission{request_id, behavior}`，「Both stay live… whichever answer arrives first」），但研究预览期需 `--dangerously-load-development-channels`，且在自定义 `ANTHROPIC_BASE_URL` 下是否可用 **待核实**；作为 1.1 spike。
 - **去重与自动关闭**：Approval 以 `tool_use_id` 为键；收到同会话的 `PostToolUse`/`Stop`/`Notification` 或 PTY 出现新提示行时判定 `answered_local` 并关闭（≤2 s）。
 - statusLine：`terminalx-agent statusline` 读 stdin JSON，只上报 `cost.total_cost_usd` 与 `context_window.used_percentage`（300 ms 去抖，可能为 `null`）；`rate_limits` 仅 Pro/Max 或 apps gateway 才有，UI 有则显示、无则不占位。

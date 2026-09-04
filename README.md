@@ -1,14 +1,16 @@
 # terminalX
 
-**你自己部署的 AI 代理监工台。** Windows 上的 Claude Code / Codex / Grok Build（MiniMax 作为供应商预设）会话常驻不掉线，手机上一屏看清谁在等你、一键处理，任何 API 配置都能远程。
+**你自己部署的 AI 代理监工台。** Linux / Windows 上的 Claude Code / Codex / Grok Build（MiniMax 作为供应商预设）会话常驻不掉线，手机上一屏看清谁在等你、一键处理，任何 API 配置都能远程。
 
-> **状态（2026-09）：设计定稿，代码可跑但未在目标平台验证。**
+> **状态（2026-09-04）：Linux 被控端已在真机跑通核心链路；Windows 被控端仍只交叉编译。**
 >
-> **已有**：三端全部实现——协议层、中转 tx-relay（含测试与 Docker 部署）、被控端 tx-agent（PTY 会话常驻、断线补差、hooks 端点、配对、登录自启安装）、Web 控制台。约 10,800 行 Go + 1,750 行 TS，68 个测试函数，`go test -race ./...` 全绿，`GOOS=windows go build` 通过，端到端冒烟（配对 → 上线 → 开会话 → 输入回显 → 刷新后快照回放 → 关闭）在 **Linux** 上跑通。
+> **已验证（真机）**：在 Ubuntu 上用真实 Claude Code 2.1.260 跑通了整条审批链路——交互式 PTY 里 claude 请求审批 → PermissionRequest hook 到达本机端点并阻塞 → 远程 `allow` → 终端显示 `Allowed by PermissionRequest hook` 并执行工具（`deny` 同样生效）。这条链路是整个产品的技术前提，此前完全是假设。可复跑：`TX_REAL_CLAUDE=1 go test ./internal/hooks -run TestRealClaudePTYApproval`。
 >
-> **未有**：Windows 上一行代码都没运行过（只交叉编译）；从未驱动过真实的 AI CLI（hooks 是用合成 payload 测的）；手机零测试。supervisor / ptyhost 双进程、Passkey / TOTP、DPAPI、端到端加密均未实现。25 条验收标准完全通过 4 条、部分通过 6 条、未验证 15 条。
+> **已有**：三端全部实现——协议层、中转 tx-relay（含测试与 Docker 部署）、被控端 tx-agent（PTY 会话常驻、断线补差、hooks 端点、配对、Linux systemd 用户服务 / Windows 任务计划自启）、Web 控制台。约 12,000 行 Go + 1,750 行 TS，76 个测试函数，`go test -race ./...` 全绿，`GOOS=windows/darwin build` 通过，端到端冒烟（配对 → 上线 → 开会话 → 输入回显 → 刷新后快照回放 → 关闭）在 **Linux** 上跑通。
 >
-> 逐项实现现状见 [架构文档 §0](docs/04-第一阶段技术架构.md)，验收逐条状态见 [设计文档 §13](docs/02-产品设计.md)，部署见 [deploy/README.md](deploy/README.md)。
+> **未有**：Windows 与 macOS 上一行代码都没运行过（只交叉编译）；systemd 安装本身未在带 user bus 的机器上执行过；手机零测试；Codex / Grok 仍只用合成 payload 测过。supervisor / ptyhost 双进程、Passkey / TOTP、DPAPI、端到端加密均未实现。25 条验收标准完全通过 4 条、部分通过 7 条、未验证 14 条。
+>
+> 逐项实现现状与真机验证结论见 [架构文档 §0](docs/04-第一阶段技术架构.md)，验收逐条状态见 [设计文档 §13](docs/02-产品设计.md)，部署见 [deploy/README.md](deploy/README.md)。
 
 ## 结论先行
 
@@ -34,13 +36,15 @@ terminalX 只做一件事：**只传字节与事件，不传像素。** 一个 W
 
 ## 数据流向
 
-对应三种形态：**控制端** = 浏览器 / 手机 PWA；**服务端** = 自建中转；**被控端** = Windows 上的单 exe。
+对应三种形态：**控制端** = 浏览器 / 手机 PWA；**服务端** = 自建中转；**被控端** = Linux / Windows 上的单二进制。
 
 ```
-浏览器 / 手机 PWA  ◄── WSS ──►  自建中转（你的 VPS，只存元数据）  ◄── WSS 出站 443 ──  Windows 被控端（登录自启，只出站）
-                                                                                              │ ConPTY
+浏览器 / 手机 PWA  ◄── WSS ──►  自建中转（你的 VPS，只存元数据）  ◄── WSS 出站 443 ──  被控端（登录自启，只出站）
+                                                                                       Linux: systemd 用户服务 + lingering
+                                                                                       Windows: 任务计划 ONLOGON
+                                                                                              │ PTY / ConPTY
                                                                                               ▼
-                                                                                    claude · codex · grok-build · pwsh
+                                                                                    claude · codex · grok-build · bash / pwsh
 状态事件（Claude http hooks · Codex hooks.json · statusLine 两个数）沿同一通道回推 → 收件箱 + 推送（飞书 / 企微 / Bark / ntfy）
 第一阶段：TLS 到中转，内容不落盘；帧内容按不透明字节设计，逐帧端到端加密在 1.1 实装（校验失败即断，不降级）。
 ```
@@ -59,6 +63,7 @@ terminalX 只做一件事：**只传字节与事件，不传像素。** 一个 W
 
 ## 第一阶段范围
 
+- **Linux 被控端（Ubuntu 等）**：单二进制，`deploy/install-agent.sh` 一条命令安装 → 配对 → 注册 systemd 用户服务（`Restart=always` + lingering，注销后仍在、开机自启），PTY 会话常驻，断线补差
 - Windows 被控端：单 exe，登录自启（用户态，不是服务），ConPTY 会话常驻，断线补差，重启后一键拉回
 - 自建中转：单二进制 + Docker 一条命令，配对码 + 指纹比对，只存元数据
 - Web 控制台：收件箱首页、设备列表、会话列表、多标签终端、三信号连接状态、远程解卡（Esc / Ctrl-C / kill & resume）
@@ -67,6 +72,17 @@ terminalX 只做一件事：**只传字节与事件，不传像素。** 一个 W
 - 手机 PWA：只读终端 + 键条 + 独立输入框；webhook 通知
 
 不做：GUI 画面远程（永不）、Windows 服务化（无官方路径）、E2E 实装（1.1 硬门槛）、成本面板与额度续跑、只读分享、回放、团队权限。完整清单见设计文档 §12。
+
+### 在 Linux 被控端上装
+
+```bash
+scripts/build.sh                                   # 产出 bin/tx-relay、bin/tx-agent、bin/tx-agent-linux-{amd64,arm64}
+deploy/install-agent.sh --relay https://tx.example.com --code XXXX-XXXX --name 工位机
+tx-agent doctor                                    # 检查 shell、AI CLI、自启与 lingering 状态
+journalctl --user -u tx-agent.service -f
+```
+
+配对码在 Web 控制台的「设备 → 添加设备」里取，5 分钟过期；安装脚本会把当前 shell 的 `PATH` 写进 systemd 单元，因为 `systemd --user` 的环境是最小集，不带 `PATH` 就找不到 `claude` / `codex`。
 
 ## 文档
 
@@ -86,7 +102,7 @@ terminalX 只做一件事：**只传字节与事件，不传像素。** 一个 W
 ## 下一步
 
 1. 动工前访谈 20 个「Windows + 中转 Key + 手机」用户，本次国内社区证据均为二手。
-2. 第 1 周三个技术验证：ConPTY 起 `claude` 在 xterm.js 渲染；原生 Windows 上 http 型 hook 触发与回写；Android 真机输入框中文到 PTY。任一失败即降级而非顺延。
+2. 第 1 周三个技术验证：**hook 触发与回写已在 Linux 上完成（通过，见架构文档 §0.4）**；仍待做的是 Windows 上 ConPTY 起 `claude` 在 xterm.js 渲染，以及 Android 真机输入框中文到 PTY。任一失败即降级而非顺延。
 3. 每月复查失败信号：Anthropic 是否放开自定义 base URL 的 Remote Control；Codex 是否修好 Windows daemon；Happier / Paseo 是否做稳 Windows。
 
 ## 许可

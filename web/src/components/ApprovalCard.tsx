@@ -9,7 +9,7 @@ export function decide(a: Approval, decision: 'allow' | 'deny'): void {
 }
 
 export function modeText(a: Approval): string {
-  if (a.level === 'A') return '远程优先：hook 已挂起等你，终端内对话框暂不显示；超时后回落到本机对话框。';
+  if (a.level === 'A') return '远程优先：hook 已挂起等你；终端里的对话框仍在，先答的一方生效，超时后回落到本机对话框。';
   if (a.level === 'B') return '通知模式：终端里的对话框已弹出。这里发送的是按键，等同于坐在电脑前按键。';
   return '疑似：由 PTY 探测得出，低置信。不会替你按键；先打开终端看一眼。';
 }
