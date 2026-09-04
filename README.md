@@ -17,7 +17,8 @@
 开发者的工作正在从「写代码」变成「监工多个 agent」：早上起几个任务出门，手机上盯，回来验收。现有工具在同一批地方失败：
 
 - **官方 Claude Code Remote Control** 不支持 API Key，`ANTHROPIC_BASE_URL` 指向中转站即禁用，Bedrock / 网关 / ZDR 组织不可用，只有聊天 UI 没有终端，本地进程必须常驻且建议 tmux——Windows 没有 tmux。
-- **ToDesk / 向日葵 / TeamViewer / UU远程 / RustDesk** 传的是像素：手机上终端字看不清、虚拟键盘没有 Esc / Ctrl、没有「谁在等我」。ToDesk 免费额度反复缩水，向日葵 / ToDesk 被企业禁装，TeamViewer 商业用途检测误判且国内连接差，UU远程 虽然加了终端但仍是单机 shell，RustDesk 能自建但仍传像素。逐款结论见 [设计文档 §4.1](docs/02-产品设计.md)。
+- **ToDesk / 向日葵 / TeamViewer / RustDesk** 传的是像素：手机上终端字看不清、虚拟键盘没有 Esc / Ctrl、没有「谁在等我」。ToDesk 免费额度反复缩水，向日葵 / ToDesk 被企业禁装，TeamViewer 商业用途检测误判且国内连接差，RustDesk 能自建但仍传像素。
+- **网易 UU远程**是例外，也是最实质的对手：零配置终端、会话分离与重新接入、CLI、端口映射，全免费且国内节点。但它是个**哑终端**——没有「谁在等我确认」、没有多机总览、不是 Web 页面、不可自建。逐款结论见 [设计文档 §4.1](docs/02-产品设计.md)，机制拆解见 [调研 07](docs/research/07-UU远程终端实现分析.md)。
 - **SSH + tmux + Tailscale** 在 Windows 被控端上是二等公民：sshd 断线子进程被回收（Win32-OpenSSH #2291 四年未解）、mosh / Tailscale SSH 没有 Windows 服务端、手机 SSH 客户端不知道「这是一个在等审批的 agent」。
 - **Happy / Happier / Paseo** 这类开源伴侣：境外中转国内连不上，Windows 稳定性差，必须用包装器启动。
 
@@ -69,7 +70,7 @@ terminalX 只做一件事：**只传字节与事件，不传像素。** 一个 W
 | [02 · 产品设计](docs/02-产品设计.md) | **主文档**：需求对照、定位、亮点分级、为什么不用 X、审批模式、信息架构、范围进 / 不进、验收、里程碑、路线图 |
 | [03 · 红队评审与亮点判断](docs/03-红队评审与亮点判断.md) | 评审打分、三视角红队反驳、被砍掉的口号、引用修正 |
 | [04 · 第一阶段技术架构](docs/04-第一阶段技术架构.md) | 选型（Go）、协议、会话保持、安全、Windows 细节、AI 感知层、里程碑、风险 |
-| [research/](docs/research/) | 六份原始调研：GUI 远控、终端 / SSH 方案、AI 代理远程控制赛道、AI CLI 能力盘点、技术可行性、用户声音 |
+| [research/](docs/research/) | 七份原始调研：GUI 远控、终端 / SSH 方案、AI 代理远程控制赛道、AI CLI 能力盘点、技术可行性、用户声音、UU远程终端实现分析 |
 | [design-proposals/](docs/design-proposals/) | 三份独立产品方案（A · AI 原生监工台 / B · 务实 MVP / C · 安全自建与团队） |
 | [architecture-options/](docs/architecture-options/) | 两份候选架构（Go / Node + Rust） |
 | [prototype/index.html](prototype/index.html) | 可交互原型：控制台、收件箱、手机端、配对、架构与范围 |
