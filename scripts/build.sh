@@ -50,10 +50,15 @@ mkdir -p bin
 log "go build tx-relay (${VERSION})"
 go build -trimpath -ldflags "${LDFLAGS}" -o bin/tx-relay ./cmd/tx-relay
 
-# ---- 3. agent (host + windows/amd64) -------------------------------------------
+# ---- 3. agent (host + linux + windows/amd64) -----------------------------------
 if ls cmd/tx-agent/*.go >/dev/null 2>&1; then
   log "go build tx-agent (host $(go env GOOS)/$(go env GOARCH))"
   go build -trimpath -ldflags "${LDFLAGS}" -o bin/tx-agent ./cmd/tx-agent
+  for arch in amd64 arm64; do
+    log "go build tx-agent-linux-${arch}"
+    GOOS=linux GOARCH="${arch}" go build -trimpath -ldflags "${LDFLAGS}" \
+      -o "bin/tx-agent-linux-${arch}" ./cmd/tx-agent
+  done
   log "go build tx-agent.exe (windows/amd64)"
   # AGENT_WINDOWS_LDFLAGS="-H=windowsgui" hides the console window of the
   # supervisor build; leave it unset for a debuggable console build.

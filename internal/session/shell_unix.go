@@ -47,15 +47,31 @@ func setSysProcAttr(cmd *exec.Cmd) {
 
 // terminate asks the process to exit (SIGTERM) and, if it does not within
 // grace, kills it. Errors from an already-exited process are ignored.
+//
+// The signal goes to the whole process group, not just the shell: the shell
+// is a session leader (Setsid above), so its pgid equals its pid and the AI
+// CLI it launched is in that group. Signalling only the shell would leave a
+// wedged `claude` behind holding the tty.
 func terminate(cmd *exec.Cmd, done <-chan struct{}, grace <-chan struct{}) {
 	if cmd == nil || cmd.Process == nil {
 		return
 	}
-	_ = cmd.Process.Signal(syscall.SIGTERM)
+	signalGroup(cmd.Process.Pid, syscall.SIGTERM)
 	select {
 	case <-done:
 		return
 	case <-grace:
 	}
-	_ = cmd.Process.Kill()
+	signalGroup(cmd.Process.Pid, syscall.SIGKILL)
+}
+
+// signalGroup signals the process group led by pid, falling back to the
+// single process when the group is already gone.
+func signalGroup(pid int, sig syscall.Signal) {
+	if pid <= 0 {
+		return
+	}
+	if err := syscall.Kill(-pid, sig); err != nil {
+		_ = syscall.Kill(pid, sig)
+	}
 }

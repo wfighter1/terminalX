@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build !windows && !linux && !darwin
 
 package agent
 
@@ -8,41 +8,29 @@ import (
 	"runtime"
 )
 
-// TaskName is the Task Scheduler task name used on Windows.
-const TaskName = "terminalX Agent"
+// TaskName is the autostart entry name (unused on this platform).
+const TaskName = "tx-agent"
 
-// Install prints instructions on non-Windows platforms (phase 1 targets
-// Windows; Linux/macOS run the agent by hand or via systemd/launchd).
+// Install prints instructions: only Windows, Linux and macOS have an
+// autostart integration in phase 1.
 func Install(cfgPath string) (string, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return "", fmt.Errorf("agent install: executable path: %w", err)
 	}
-	switch runtime.GOOS {
-	case "darwin":
-		return fmt.Sprintf(`Automatic install is Windows-only in this phase. On macOS create a LaunchAgent, e.g.
-~/Library/LaunchAgents/io.terminalx.agent.plist with ProgramArguments
-  ["%s", "run", "--config", "%s"], RunAtLoad=true, KeepAlive=true
-then: launchctl load ~/Library/LaunchAgents/io.terminalx.agent.plist
-`, exe, cfgPath), nil
-	default:
-		return fmt.Sprintf(`Automatic install is Windows-only in this phase. On %s create a user service, e.g.
-~/.config/systemd/user/tx-agent.service:
-  [Unit]
-  Description=terminalX agent
-  After=network-online.target
-  [Service]
-  ExecStart=%s run --config %s
-  Restart=always
-  RestartSec=5
-  [Install]
-  WantedBy=default.target
-then: systemctl --user enable --now tx-agent && loginctl enable-linger $USER
+	return fmt.Sprintf(`Automatic install is not implemented for %s. Register this command with
+whatever supervisor the system uses so it starts at login and restarts on exit:
+
+  %s run --config %s
 `, runtime.GOOS, exe, cfgPath), nil
-	}
 }
 
-// Uninstall prints instructions on non-Windows platforms.
+// Uninstall prints instructions on unsupported platforms.
 func Uninstall() (string, error) {
-	return "Automatic uninstall is Windows-only in this phase; remove the LaunchAgent / systemd user unit you created by hand.\n", nil
+	return fmt.Sprintf("Automatic uninstall is not implemented for %s; remove the entry you created by hand.\n", runtime.GOOS), nil
+}
+
+// autostartStatus is the `tx-agent doctor` line for the autostart entry.
+func autostartStatus() string {
+	return "no autostart integration for " + runtime.GOOS
 }

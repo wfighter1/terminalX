@@ -67,10 +67,13 @@ func Doctor(ctx context.Context, cfg *Config, cfgPath string, w io.Writer) error
 		}
 	}
 	if _, err := exec.LookPath(curlName()); err != nil {
-		p("  %-14s not found (Claude statusLine metrics need it)", curlName())
+		p("  %-14s not found (only needed as a fallback; hooks are forwarded by tx-agent itself)", curlName())
 	} else {
 		p("  %-14s ok", curlName())
 	}
+	p("")
+	p("autostart:")
+	p("  %s", autostartStatus())
 	p("")
 	p("relay:")
 	if cfg.RelayURL == "" {

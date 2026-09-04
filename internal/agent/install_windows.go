@@ -46,6 +46,24 @@ func Install(cfgPath string) (string, error) {
 	return out.String(), nil
 }
 
+// autostartStatus is the `tx-agent doctor` line for the autostart entry.
+func autostartStatus() string {
+	b, err := exec.Command("schtasks.exe", "/Query", "/TN", TaskName, "/FO", "LIST").CombinedOutput()
+	if err != nil {
+		return fmt.Sprintf("task %q not registered (run `tx-agent install`)", TaskName)
+	}
+	status := ""
+	for _, line := range strings.Split(string(b), "\n") {
+		if strings.HasPrefix(line, "Status:") {
+			status = strings.TrimSpace(strings.TrimPrefix(line, "Status:"))
+		}
+	}
+	if status == "" {
+		return fmt.Sprintf("task %q registered", TaskName)
+	}
+	return fmt.Sprintf("task %q registered, status %s", TaskName, status)
+}
+
 // Uninstall removes the Task Scheduler task.
 func Uninstall() (string, error) {
 	cmd := exec.Command("schtasks.exe", "/Delete", "/F", "/TN", TaskName)
