@@ -2,7 +2,13 @@
 
 **你自己部署的 AI 代理监工台。** Windows 上的 Claude Code / Codex / Grok Build（MiniMax 作为供应商预设）会话常驻不掉线，手机上一屏看清谁在等你、一键处理，任何 API 配置都能远程。
 
-> 状态：设计定稿，第一阶段实现进行中（2026-09）。已有：协议层、中转 tx-relay（含测试与 Docker 部署）、被控端 tx-agent（PTY 会话常驻、断线补差、hooks 端点、配对、登录自启安装）、Web 控制台；三者在 Linux 上已跑通端到端冒烟测试（配对 → 上线 → 开会话 → 输入回显 → 刷新后快照回放 → 关闭），Windows 目标已交叉编译通过。尚未：Windows 真机验证、supervisor / ptyhost 双进程、代码签名、发布版本。代码目录结构见 [架构文档 §7](docs/04-第一阶段技术架构.md)，部署见 [deploy/README.md](deploy/README.md)。
+> **状态（2026-09）：设计定稿，代码可跑但未在目标平台验证。**
+>
+> **已有**：三端全部实现——协议层、中转 tx-relay（含测试与 Docker 部署）、被控端 tx-agent（PTY 会话常驻、断线补差、hooks 端点、配对、登录自启安装）、Web 控制台。约 10,800 行 Go + 1,750 行 TS，68 个测试函数，`go test -race ./...` 全绿，`GOOS=windows go build` 通过，端到端冒烟（配对 → 上线 → 开会话 → 输入回显 → 刷新后快照回放 → 关闭）在 **Linux** 上跑通。
+>
+> **未有**：Windows 上一行代码都没运行过（只交叉编译）；从未驱动过真实的 AI CLI（hooks 是用合成 payload 测的）；手机零测试。supervisor / ptyhost 双进程、Passkey / TOTP、DPAPI、端到端加密均未实现。25 条验收标准完全通过 4 条、部分通过 6 条、未验证 15 条。
+>
+> 逐项实现现状见 [架构文档 §0](docs/04-第一阶段技术架构.md)，验收逐条状态见 [设计文档 §13](docs/02-产品设计.md)，部署见 [deploy/README.md](deploy/README.md)。
 
 ## 结论先行
 
@@ -71,8 +77,8 @@ terminalX 只做一件事：**只传字节与事件，不传像素。** 一个 W
 | [03 · 红队评审与亮点判断](docs/03-红队评审与亮点判断.md) | 评审打分、三视角红队反驳、被砍掉的口号、引用修正 |
 | [04 · 第一阶段技术架构](docs/04-第一阶段技术架构.md) | 选型（Go）、协议、会话保持、安全、Windows 细节、AI 感知层、里程碑、风险 |
 | [research/](docs/research/) | 七份原始调研：GUI 远控、终端 / SSH 方案、AI 代理远程控制赛道、AI CLI 能力盘点、技术可行性、用户声音、UU远程终端实现分析 |
-| [design-proposals/](docs/design-proposals/) | 三份独立产品方案（A · AI 原生监工台 / B · 务实 MVP / C · 安全自建与团队） |
-| [architecture-options/](docs/architecture-options/) | 两份候选架构（Go / Node + Rust） |
+| [design-proposals/](docs/design-proposals/) | 三份独立产品方案（A · AI 原生监工台 / B · 务实 MVP / C · 安全自建与团队）——**历史候选稿，不跟踪实现现状** |
+| [architecture-options/](docs/architecture-options/) | 两份候选架构（Go / Node + Rust）——**历史候选稿，不跟踪实现现状**；最终选型与现状以 04 为准 |
 | [prototype/index.html](prototype/index.html) | 可交互原型：控制台、收件箱、手机端、配对、架构与范围 |
 
 看不懂的词（ConPTY、hooks、ZDR、PWA、1.1 等）见 [设计文档附录 A 术语表](docs/02-产品设计.md)。
