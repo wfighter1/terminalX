@@ -157,7 +157,9 @@ func renderUnit(exe, cfgPath string) string {
 // systemd user unit does not inherit but the agent needs.
 func environmentLines() string {
 	var b strings.Builder
-	for _, key := range []string{"PATH", "SHELL", "LANG", "TERM"} {
+	// TERM is deliberately not captured: sessions always run with the TERM
+	// the web console speaks (see session.baseEnv).
+	for _, key := range []string{"PATH", "SHELL", "LANG"} {
 		v := os.Getenv(key)
 		if v == "" || strings.ContainsAny(v, "\n\r") {
 			continue

@@ -6,7 +6,9 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -70,6 +72,25 @@ func Doctor(ctx context.Context, cfg *Config, cfgPath string, w io.Writer) error
 		p("  %-14s not found (only needed as a fallback; hooks are forwarded by tx-agent itself)", curlName())
 	} else {
 		p("  %-14s ok", curlName())
+	}
+	p("")
+	p("session persistence:")
+	switch {
+	case !cfg.PersistEnabled():
+		p("  off by config (persist=%q): sessions die when the agent restarts", cfg.Persist)
+	case !session.TmuxAvailable():
+		p("  tmux NOT FOUND: sessions die when the agent restarts — install tmux")
+	default:
+		conf := filepath.Join(filepath.Dir(cfgPath), "tmux.conf")
+		if _, err := os.Stat(conf); err != nil {
+			conf = "" // not written yet: the agent has not run here
+		}
+		p("  tmux ok (private server %q)", session.TmuxServer)
+		if sids := session.TmuxSessions(conf); len(sids) > 0 {
+			p("  sessions alive right now: %v", sids)
+		} else {
+			p("  sessions alive right now: none")
+		}
 	}
 	p("")
 	p("autostart:")

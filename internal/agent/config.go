@@ -48,6 +48,21 @@ type Config struct {
 	Presets      map[string]map[string]string `json:"presets,omitempty"`
 	Secrets      Secrets                      `json:"secrets"`
 	DefaultShell string                       `json:"default_shell,omitempty"`
+	// Persist selects the session-persistence backend so a session outlives
+	// the agent process: "auto" (default) uses tmux when it is installed,
+	// "off" disables it. Windows has no backend yet, so it is always off
+	// there.
+	Persist string `json:"persist,omitempty"`
+}
+
+// PersistEnabled reports whether sessions should be hosted in tmux.
+func (c *Config) PersistEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(c.Persist)) {
+	case "off", "false", "no":
+		return false
+	default:
+		return true
+	}
 }
 
 // DefaultPath returns $HOME/.terminalx/agent.json.

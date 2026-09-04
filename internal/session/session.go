@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -50,6 +51,16 @@ type Options struct {
 	// Env entries ("K=V") appended to the process environment.
 	Env        []string
 	Cols, Rows uint16
+	// Persist hosts the session in tmux so it survives the agent process
+	// (see persist.go). Ignored when tmux is unavailable.
+	Persist bool
+	// PersistConf is the generated tmux config passed with -f; WriteTmuxConf
+	// produces it. Required when Persist is set.
+	PersistConf string
+	// PersistStateDir is the per-session directory the tmux backend keeps its
+	// small state in (currently the recorded exit status). It must be the
+	// same path across restarts for a session to be adopted cleanly.
+	PersistStateDir string
 	// RingSize defaults to DefaultRingSize.
 	RingSize int
 	// BatchInterval defaults to DefaultBatchInterval.
@@ -69,6 +80,7 @@ type Options struct {
 type proc struct {
 	pty        xpty.Pty
 	cmd        *exec.Cmd
+	started    time.Time
 	readerDone chan struct{} // reader goroutine stopped
 	exited     chan struct{} // process reaped and pty closed
 	code       int32
@@ -95,6 +107,10 @@ type Session struct {
 	toolExited     bool
 	killing        bool
 	closed         bool
+	suspended      bool
+	persist        bool   // tmux is actually in use (Persist && tmux present)
+	persistName    string // tmux session name
+	fastReattaches int    // consecutive tmux clients that died immediately
 
 	// output batching (guarded by mu)
 	pending    []byte
@@ -120,7 +136,20 @@ func NewSID() uint32 {
 // Start resolves the shell, allocates a PTY, launches the shell and (for
 // tool sessions) types the tool command line into it once the shell has
 // produced its first output.
-func Start(o Options) (*Session, error) {
+func Start(o Options) (*Session, error) { return start(o, false) }
+
+// Adopt re-attaches to a session that is still alive in tmux — the case after
+// the agent process restarted. It types no tool command (the tool is already
+// running) and seeds the ring from the tmux scrollback so a console that
+// attaches immediately sees where the session got to.
+func Adopt(o Options) (*Session, error) {
+	if !o.Persist {
+		return nil, errors.New("session: Adopt requires Persist")
+	}
+	return start(o, true)
+}
+
+func start(o Options, adopt bool) (*Session, error) {
 	if o.SID == 0 {
 		o.SID = NewSID()
 	}
@@ -186,7 +215,24 @@ func Start(o Options) (*Session, error) {
 		PTYAlive:       true,
 	}
 	s.lastOutput = now
-	p, err := s.spawn(false)
+	if o.Persist && TmuxAvailable() && o.PersistConf != "" {
+		s.persist = true
+		s.persistName = PersistName(o.SID)
+	}
+	mode := spawnNew
+	if adopt {
+		if !s.persist {
+			return nil, errors.New("session: Adopt needs a working tmux backend")
+		}
+		if !TmuxHasSession(o.PersistConf, s.persistName) {
+			return nil, fmt.Errorf("session: tmux session %s is gone", s.persistName)
+		}
+		if hist := TmuxCapture(o.PersistConf, s.persistName, 400); len(hist) > 0 {
+			s.ring.Write(hist)
+		}
+		mode = spawnAttach
+	}
+	p, err := s.spawn(mode)
 	if err != nil {
 		return nil, err
 	}
@@ -196,8 +242,18 @@ func Start(o Options) (*Session, error) {
 	return s, nil
 }
 
-// spawn allocates a PTY and starts the shell; it does not touch s.cur.
-func (s *Session) spawn(resume bool) (*proc, error) {
+// spawnMode says what a spawn should do beyond starting the process.
+type spawnMode int
+
+const (
+	spawnNew    spawnMode = iota // fresh session: type the tool command line
+	spawnResume                  // after kill_resume: type the resume form
+	spawnAttach                  // re-attach to a live tmux session: type nothing
+)
+
+// spawn allocates a PTY and starts the shell (or the tmux client hosting it);
+// it does not touch s.cur.
+func (s *Session) spawn(mode spawnMode) (*proc, error) {
 	s.mu.Lock()
 	cols, rows := s.info.Cols, s.info.Rows
 	s.mu.Unlock()
@@ -205,7 +261,13 @@ func (s *Session) spawn(resume bool) (*proc, error) {
 	if err != nil {
 		return nil, fmt.Errorf("session: allocate pty: %w", err)
 	}
-	cmd := exec.Command(s.shellPath, s.shellArgs...)
+	name, argv := s.shellPath, s.shellArgs
+	if s.persist {
+		name = "tmux"
+		argv = tmuxLaunch(s.opts.PersistConf, s.persistName, cols, rows,
+			s.opts.Cwd, s.shellPath, s.shellArgs, s.exitFile())
+	}
+	cmd := exec.Command(name, argv...)
 	cmd.Dir = s.opts.Cwd
 	cmd.Env = append(baseEnv(), s.opts.Env...)
 	setSysProcAttr(cmd)
@@ -218,13 +280,23 @@ func (s *Session) spawn(resume bool) (*proc, error) {
 	if sp, ok := pty.(interface{ Slave() *os.File }); ok {
 		_ = sp.Slave().Close()
 	}
-	p := &proc{pty: pty, cmd: cmd, readerDone: make(chan struct{}), exited: make(chan struct{})}
+	p := &proc{pty: pty, cmd: cmd, started: time.Now(), readerDone: make(chan struct{}), exited: make(chan struct{})}
 	go s.readLoop(p)
 	go s.waitLoop(p)
-	if line := s.opts.Tool.Command(resume); line != "" {
-		go s.typeTool(p, line)
+	if mode != spawnAttach {
+		if line := s.opts.Tool.Command(mode == spawnResume); line != "" {
+			go s.typeTool(p, line)
+		}
 	}
 	return p, nil
+}
+
+// exitFile is where the tmux wrapper records the shell's exit status.
+func (s *Session) exitFile() string {
+	if !s.persist || s.opts.PersistStateDir == "" {
+		return ""
+	}
+	return filepath.Join(s.opts.PersistStateDir, "exit")
 }
 
 // afterGrace returns a channel closed after d (terminate's grace input).
@@ -234,19 +306,22 @@ func afterGrace(d time.Duration) <-chan struct{} {
 	return ch
 }
 
+// baseEnv is the environment every session process starts from. TERM is
+// forced rather than inherited: the far end of this PTY is always xterm.js in
+// the console, never the terminal the agent itself was started from. An agent
+// launched by systemd may have TERM unset or "linux", and a tmux client that
+// believes it is talking to a Linux console falls back to line-drawing via
+// SO/SI, which xterm.js renders as stray "q" characters. Options.Env is
+// appended after this, so a caller can still override it.
 func baseEnv() []string {
-	env := os.Environ()
-	hasTerm := false
-	for _, e := range env {
+	env := make([]string, 0, len(os.Environ())+1)
+	for _, e := range os.Environ() {
 		if strings.HasPrefix(e, "TERM=") {
-			hasTerm = true
-			break
+			continue
 		}
+		env = append(env, e)
 	}
-	if !hasTerm {
-		env = append(env, "TERM=xterm-256color")
-	}
-	return env
+	return append(env, "TERM=xterm-256color")
 }
 
 // typeTool writes the tool command line once the shell shows its prompt
@@ -381,6 +456,26 @@ func (s *Session) waitLoop(p *proc) {
 
 	s.mu.Lock()
 	superseded := s.cur != p || s.killing || s.closed
+	persist := s.persist
+	s.mu.Unlock()
+
+	// Under tmux the process we own is only the client. If it died while the
+	// tmux session is still alive, the tool did not exit — we lost the client
+	// (someone ran `tmux detach`, or it crashed). Take the session back
+	// instead of reporting a phantom exit.
+	if !superseded && persist && TmuxHasSession(s.opts.PersistConf, s.persistName) {
+		close(p.exited)
+		s.reattach(p)
+		return
+	}
+
+	if persist {
+		// The client's status is not the shell's; the wrapper recorded it.
+		if c, ok := readExitFile(s.exitFile()); ok {
+			code = c
+		}
+	}
+	s.mu.Lock()
 	var resumable *proto.Resumable
 	if !superseded {
 		s.info.State = proto.StateExited
@@ -396,6 +491,48 @@ func (s *Session) waitLoop(p *proc) {
 		return
 	}
 	s.log.Info("shell exited", "code", code)
+	if s.opts.OnExit != nil {
+		s.opts.OnExit(code, resumable)
+	}
+}
+
+// reattach replaces a tmux client that died on its own. Repeated immediate
+// failures mean tmux itself is broken, so it stops rather than spin.
+func (s *Session) reattach(old *proc) {
+	s.mu.Lock()
+	if time.Since(old.started) < 5*time.Second {
+		s.fastReattaches++
+	} else {
+		s.fastReattaches = 0
+	}
+	giveUp := s.fastReattaches > 3
+	s.mu.Unlock()
+
+	if !giveUp {
+		if p, err := s.spawn(spawnAttach); err == nil {
+			s.mu.Lock()
+			s.cur = p
+			s.info.PTYAlive = true
+			s.info.State = proto.StateRunning
+			s.mu.Unlock()
+			s.log.Info("tmux client reattached", "tmux", s.persistName)
+			return
+		} else {
+			s.log.Warn("tmux reattach failed", "err", err)
+		}
+	} else {
+		s.log.Warn("tmux client keeps dying immediately, giving up", "tmux", s.persistName)
+	}
+
+	const code int32 = -1
+	s.mu.Lock()
+	s.info.State = proto.StateFailed
+	s.info.PTYAlive = false
+	s.info.ExitCode = nil
+	s.info.Kind = ""
+	resumable := s.resumableLocked()
+	s.info.Resumable = resumable
+	s.mu.Unlock()
 	if s.opts.OnExit != nil {
 		s.opts.OnExit(code, resumable)
 	}
@@ -680,6 +817,13 @@ func (s *Session) KillResume() error {
 		case <-old.exited:
 		case <-time.After(killResumeGrace):
 			s.log.Warn("kill_resume: graceful exit timed out, terminating")
+			// Under tmux the process we own is only the client: killing it
+			// would detach and leave the wedged tool running.
+			if s.persist {
+				if err := TmuxKill(s.opts.PersistConf, s.persistName); err != nil {
+					s.log.Warn("kill_resume: tmux kill-session failed", "err", err)
+				}
+			}
 			terminate(old.cmd, old.exited, afterGrace(2*time.Second))
 			// Closing the PTY unblocks a reader stuck on ConPTY.
 			select {
@@ -694,7 +838,7 @@ func (s *Session) KillResume() error {
 	s.emit([]byte(fmt.Sprintf("\r\n\x1b[2m[terminalX] kill & resume: %s 已重启，正在续跑上一段会话…\x1b[0m\r\n", s.opts.Tool.Tool)))
 	s.flush()
 
-	p, err := s.spawn(true)
+	p, err := s.spawn(spawnResume)
 	s.mu.Lock()
 	s.killing = false
 	if err != nil {
@@ -729,7 +873,14 @@ func (s *Session) Close() {
 	p := s.cur
 	alive := s.info.PTYAlive
 	s.info.PTYAlive = false
+	persist, name := s.persist, s.persistName
 	s.mu.Unlock()
+	if persist {
+		// The PTY hosts a tmux client; terminating it would only detach.
+		if err := TmuxKill(s.opts.PersistConf, name); err != nil {
+			s.log.Warn("close: tmux kill-session failed", "err", err)
+		}
+	}
 	if p == nil {
 		return
 	}
@@ -746,6 +897,50 @@ func (s *Session) Close() {
 		}
 	}
 }
+
+// Suspend releases the PTY but leaves the session running in tmux, so the
+// next agent process can Adopt it. Without a tmux backend it is the same as
+// Close, because there is nothing left to hold the session. It is idempotent
+// and, like Close, ends this Session object's life.
+func (s *Session) Suspend() {
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return
+	}
+	if !s.persist {
+		s.mu.Unlock()
+		s.Close()
+		return
+	}
+	s.closed = true
+	s.suspended = true
+	p := s.cur
+	alive := s.info.PTYAlive
+	s.info.PTYAlive = false
+	s.mu.Unlock()
+	if p == nil {
+		return
+	}
+	if alive {
+		// Killing the client detaches; the tmux server keeps the session.
+		terminate(p.cmd, p.exited, afterGrace(2*time.Second))
+	}
+	select {
+	case <-p.exited:
+	case <-time.After(2 * time.Second):
+		_ = p.pty.Close()
+		select {
+		case <-p.exited:
+		case <-time.After(2 * time.Second):
+		}
+	}
+	s.log.Info("session suspended", "tmux", s.persistName)
+}
+
+// Persisted reports whether this session is hosted in tmux and therefore
+// survives the agent process.
+func (s *Session) Persisted() bool { return s.persist }
 
 // Wait blocks until the current process generation exits (tests / shutdown).
 func (s *Session) Wait(ctx context.Context) error {

@@ -28,6 +28,13 @@ if [ -z "$RELAY" ] || [ -z "$CODE" ]; then
   exit 2
 fi
 
+if ! command -v tmux >/dev/null 2>&1; then
+  echo "[install] WARNING: tmux is not installed."
+  echo "[install]   Without it a session dies whenever the agent restarts (upgrade, crash,"
+  echo "[install]   systemd restart) — which is the thing terminalX exists to prevent."
+  echo "[install]   Install it first, e.g.:  sudo apt install tmux"
+fi
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ARCH="$(uname -m)"; case "$ARCH" in x86_64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;; esac
 
@@ -62,5 +69,5 @@ if [ -n "$NAME" ]; then PAIR_ARGS+=(--name "$NAME"); fi
 # The unit records the PATH of this shell, so the agent can find claude/codex.
 "$DEST/tx-agent" install
 echo
-"$DEST/tx-agent" doctor | sed -n '/^autostart:/,+2p'
+"$DEST/tx-agent" doctor | sed -n '/^session persistence:/,/^relay:/p'
 echo "[install] done. Logs: journalctl --user -u tx-agent.service -f"

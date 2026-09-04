@@ -228,35 +228,52 @@ func repoRoot(t *testing.T) string {
 // stripANSI removes escape sequences so assertions can look for plain text.
 // Claude positions words with cursor-column escapes instead of spaces, so the
 // result is readable but its spacing is not meaningful.
+//
+// String sequences (OSC, DCS, APC …) end at BEL *or* at ST (ESC \\); tmux
+// emits the ST form, and a scanner that only looks for BEL swallows the whole
+// rest of the stream.
 func stripANSI(s string) string {
 	var b strings.Builder
 	for i := 0; i < len(s); {
-		if s[i] != 0x1b {
-			b.WriteByte(s[i])
+		c := s[i]
+		if c != 0x1b {
+			if c != 0x0e && c != 0x0f { // SO / SI charset shifts
+				b.WriteByte(c)
+			}
 			i++
 			continue
 		}
 		i++
-		if i < len(s) && (s[i] == '(' || s[i] == ')') {
+		if i >= len(s) {
+			break
+		}
+		switch s[i] {
+		case '[': // CSI: 0x20-0x3f parameters, then one final byte
+			i++
+			for i < len(s) && s[i] >= 0x20 && s[i] <= 0x3f {
+				i++
+			}
+			if i < len(s) {
+				i++
+			}
+		case ']', 'P', 'X', '^', '_': // OSC / DCS / SOS / PM / APC
+			i++
+			for i < len(s) {
+				if s[i] == 0x07 {
+					i++
+					break
+				}
+				if s[i] == 0x1b && i+1 < len(s) && s[i+1] == '\\' {
+					i += 2
+					break
+				}
+				i++
+			}
+		case '(', ')', '*', '+': // charset designators take one more byte
 			i += 2
-			continue
-		}
-		if i < len(s) && s[i] == ']' { // OSC … BEL / ST
-			for i < len(s) && s[i] != 0x07 {
-				i++
-			}
+		default:
 			i++
-			continue
 		}
-		if i < len(s) && s[i] == '[' {
-			i++
-			for i < len(s) && (s[i] == ';' || s[i] == '?' || s[i] == '>' || (s[i] >= '0' && s[i] <= '9')) {
-				i++
-			}
-			i++ // final byte
-			continue
-		}
-		i++
 	}
 	return b.String()
 }

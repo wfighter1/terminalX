@@ -36,7 +36,6 @@ func TestEnvironmentLinesSkipsUnset(t *testing.T) {
 	t.Setenv("PATH", "/usr/bin")
 	t.Setenv("SHELL", "")
 	t.Setenv("LANG", "")
-	t.Setenv("TERM", "")
 	got := environmentLines()
 	if got != "Environment=PATH=/usr/bin\n" {
 		t.Fatalf("environmentLines() = %q", got)

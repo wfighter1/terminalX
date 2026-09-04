@@ -46,6 +46,9 @@ type Agent struct {
 	store    *hooks.Store
 	resolver presets.Resolver
 
+	persist  bool   // tmux-backed session persistence is on
+	tmuxConf string // generated tmux config passed to every tmux call
+
 	mu       sync.Mutex
 	sessions map[uint32]*session.Session
 	ptyKeys  map[uint32]string // sid → active level-C approval key
@@ -98,7 +101,8 @@ func New(cfg *Config, cfgPath string, log *slog.Logger) (*Agent, error) {
 }
 
 // Run starts the hooks endpoint and the relay connection loop and blocks
-// until ctx is cancelled. Sessions are terminated on return.
+// until ctx is cancelled. On return, sessions hosted in tmux are left running
+// for the next agent process; the rest are terminated.
 func (a *Agent) Run(ctx context.Context) error {
 	if changed, err := a.cfg.EnsureIdentity(); err != nil {
 		return err
@@ -123,6 +127,8 @@ func (a *Agent) Run(ctx context.Context) error {
 		}
 	}
 	a.log.Info("hooks endpoint listening", "addr", "127.0.0.1:"+strconv.Itoa(port))
+	a.setupPersistence()
+	a.adoptSessions()
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- a.hooks.Serve() }()
 
@@ -150,11 +156,34 @@ func (a *Agent) Run(ctx context.Context) error {
 	_ = a.hooks.Shutdown(sctx)
 	a.closeConn()
 	wg.Wait()
-	a.closeAllSessions()
+	a.suspendAllSessions()
 	if runErr != nil && !errors.Is(runErr, context.Canceled) {
 		return runErr
 	}
 	return nil
+}
+
+// setupPersistence decides whether sessions are hosted in tmux. A missing
+// tmux is not an error: the agent falls back to in-process sessions, which is
+// also what Windows does until it gets a ptyhost of its own.
+func (a *Agent) setupPersistence() {
+	if !a.cfg.PersistEnabled() {
+		a.log.Info("session persistence disabled by config; sessions die with the agent")
+		return
+	}
+	if !session.TmuxAvailable() {
+		a.log.Warn("tmux not found: sessions will not survive an agent restart",
+			"hint", "install tmux to keep sessions across upgrades and crashes")
+		return
+	}
+	conf, err := session.WriteTmuxConf(a.root)
+	if err != nil {
+		a.log.Warn("could not write the tmux config; persistence off", "err", err)
+		return
+	}
+	a.persist = true
+	a.tmuxConf = conf
+	a.log.Info("session persistence on (tmux)", "conf", conf)
 }
 
 // RTT returns the last measured relay round-trip time.
@@ -271,19 +300,22 @@ func (a *Agent) openSession(o proto.OpenRequest) (*session.Session, error) {
 		shell = a.cfg.DefaultShell
 	}
 	s, err := session.Start(session.Options{
-		SID:          sid,
-		Shell:        shell,
-		Cwd:          o.Cwd,
-		Tool:         spec,
-		Name:         o.Name,
-		Preset:       o.Preset,
-		ApprovalMode: mode,
-		Env:          env,
-		Cols:         o.Cols,
-		Rows:         o.Rows,
-		Log:          a.log,
-		OnOutput:     func(seq uint64, data []byte) { a.onOutput(sid, seq, data) },
-		OnExit:       func(code int32, r *proto.Resumable) { a.onExit(sid, code, r) },
+		SID:             sid,
+		Shell:           shell,
+		Cwd:             o.Cwd,
+		Tool:            spec,
+		Name:            o.Name,
+		Preset:          o.Preset,
+		ApprovalMode:    mode,
+		Env:             env,
+		Cols:            o.Cols,
+		Rows:            o.Rows,
+		Persist:         a.persist,
+		PersistConf:     a.tmuxConf,
+		PersistStateDir: a.sessionDir(sid),
+		Log:             a.log,
+		OnOutput:        func(seq uint64, data []byte) { a.onOutput(sid, seq, data) },
+		OnExit:          func(code int32, r *proto.Resumable) { a.onExit(sid, code, r) },
 	})
 	if err != nil {
 		return nil, err
@@ -291,7 +323,17 @@ func (a *Agent) openSession(o proto.OpenRequest) (*session.Session, error) {
 	a.mu.Lock()
 	a.sessions[sid] = s
 	a.mu.Unlock()
-	a.log.Info("session opened", "sid", sid, "tool", tool, "shell", s.Info().Shell, "cwd", s.Info().Cwd, "preset", o.Preset)
+	info := s.Info()
+	if a.persist {
+		a.writeMeta(sessionMeta{
+			SID: sid, Name: o.Name, Tool: tool, Shell: shell, Cwd: info.Cwd,
+			Preset: o.Preset, ApprovalMode: string(mode), PermissionMode: o.PermissionMode,
+			Extra: o.Extra, SettingsPath: spec.SettingsPath, CodexNotify: spec.CodexNotify,
+			StartedAt: info.StartedAt, Cols: info.Cols, Rows: info.Rows,
+		})
+	}
+	a.log.Info("session opened", "sid", sid, "tool", tool, "shell", info.Shell,
+		"cwd", info.Cwd, "preset", o.Preset, "persisted", s.Persisted())
 	return s, nil
 }
 
@@ -328,18 +370,6 @@ func (a *Agent) closeSession(sid uint32) bool {
 	_ = os.RemoveAll(filepath.Join(a.root, "sessions", strconv.FormatUint(uint64(sid), 10)))
 	a.log.Info("session closed", "sid", sid)
 	return true
-}
-
-func (a *Agent) closeAllSessions() {
-	a.mu.Lock()
-	sids := make([]uint32, 0, len(a.sessions))
-	for sid := range a.sessions {
-		sids = append(sids, sid)
-	}
-	a.mu.Unlock()
-	for _, sid := range sids {
-		a.closeSession(sid)
-	}
 }
 
 // ---- hooks.Events -------------------------------------------------------
@@ -386,6 +416,7 @@ func (a *Agent) SessionUpdated(sid uint32, costUSD, contextPct *float64) {
 func (a *Agent) ToolSession(sid uint32, agent, toolSessionID string) {
 	if s := a.session(sid); s != nil {
 		s.SetToolSession(toolSessionID)
+		a.noteToolSession(sid, toolSessionID)
 		a.log.Debug("tool session recorded", "sid", sid, "agent", agent, "id", toolSessionID)
 	}
 }
