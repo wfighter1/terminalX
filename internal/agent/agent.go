@@ -256,6 +256,7 @@ func (a *Agent) openSession(o proto.OpenRequest) (*session.Session, error) {
 		path, err := hooks.WriteClaudeSettings(a.root, hooks.ClaudeSettingsOptions{
 			SID: sid, Port: port, Token: a.cfg.HookToken, Mode: mode,
 			RemoteFirstTimeout: remoteFirstTimeout, NotifyTimeout: notifyTimeout,
+			AgentExe: a.exe,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("claude settings: %w", err)

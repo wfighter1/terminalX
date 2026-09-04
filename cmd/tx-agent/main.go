@@ -5,6 +5,7 @@
 //	tx-agent doctor [--config PATH]
 //	tx-agent install | uninstall [--config PATH]
 //	tx-agent notify --sid N --port P --token T '<json>'       (used by Codex)
+//	tx-agent hook --sid N --port P --token T --event NAME     (used by Claude)
 //	tx-agent version
 package main
 
@@ -41,6 +42,7 @@ commands:
   install    register autostart at logon (Windows: Task Scheduler ONLOGON)
   uninstall  remove the autostart registration
   notify     forward a Codex notify payload:  --sid N --port P --token T '<json>'
+  hook       forward a Claude hook payload from stdin: --sid N --port P --token T --event NAME
   version    print the version
 `)
 }
@@ -68,6 +70,8 @@ func run(args []string) error {
 		return cmdInstall(args, false)
 	case "notify":
 		return cmdNotify(args)
+	case "hook":
+		return cmdHook(args)
 	case "version", "--version", "-v":
 		fmt.Printf("tx-agent %s (%s/%s)\n", agent.Version, runtime.GOOS, runtime.GOARCH)
 		return nil
@@ -217,6 +221,21 @@ func cmdNotify(args []string) error {
 		return errors.New("notify: missing JSON payload argument")
 	}
 	return agent.Notify(context.Background(), *port, uint32(*sid), *token, rest[len(rest)-1])
+}
+
+// cmdHook forwards one Claude hook payload from stdin to the local hooks
+// endpoint and writes the endpoint's answer to stdout, which is what Claude
+// reads back from a command hook.
+func cmdHook(args []string) error {
+	fs := flag.NewFlagSet("hook", flag.ContinueOnError)
+	sid := fs.Uint("sid", 0, "session id")
+	port := fs.Int("port", 0, "hooks port")
+	token := fs.String("token", "", "hook token")
+	event := fs.String("event", "", "hook event name, or \"statusline\"")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	return agent.ForwardHook(context.Background(), *port, uint32(*sid), *token, *event, os.Stdin, os.Stdout)
 }
 
 func envOr(key, def string) string {

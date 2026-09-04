@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -345,4 +346,95 @@ func TestClaudeSettings(t *testing.T) {
 	if b, err := readFile(p); err != nil || json.Unmarshal(b, &back) != nil || back["hooks"] == nil {
 		t.Fatalf("settings file: %v", err)
 	}
+}
+
+// The forwarder replaces curl when the agent path is known, and SessionStart
+// must be a command hook because Claude does not deliver it over http.
+func TestClaudeSettingsForwarderAndCommandHooks(t *testing.T) {
+	m := ClaudeSettings(ClaudeSettingsOptions{SID: 5, Port: 4321, Token: "tk", AgentExe: "/opt/tx agent/tx-agent"})
+	hooks := m["hooks"].(map[string]any)
+	ss := hooks["SessionStart"].([]map[string]any)[0]["hooks"].([]map[string]any)[0]
+	if ss["type"] != "command" {
+		t.Fatalf("SessionStart must be a command hook, got %+v", ss)
+	}
+	cmd := ss["command"].(string)
+	for _, want := range []string{"'/opt/tx agent/tx-agent'", "hook", "--sid 5", "--port 4321", "--token tk", "--event SessionStart"} {
+		if !strings.Contains(cmd, want) {
+			t.Fatalf("SessionStart command %q missing %q", cmd, want)
+		}
+	}
+	if pr := hooks["PermissionRequest"].([]map[string]any)[0]["hooks"].([]map[string]any)[0]; pr["type"] != "http" {
+		t.Fatalf("PermissionRequest must stay http: %+v", pr)
+	}
+	sl := m["statusLine"].(map[string]any)["command"].(string)
+	if !strings.Contains(sl, "--event statusline") || strings.Contains(sl, "curl") {
+		t.Fatalf("statusLine should use the forwarder: %q", sl)
+	}
+	// Without AgentExe the generator falls back to curl.
+	fallback := ClaudeSettings(ClaudeSettingsOptions{SID: 5, Port: 4321, Token: "tk"})
+	fss := fallback["hooks"].(map[string]any)["SessionStart"].([]map[string]any)[0]["hooks"].([]map[string]any)[0]
+	if !strings.Contains(fss["command"].(string), "/hook/claude/5/SessionStart") {
+		t.Fatalf("curl fallback: %+v", fss)
+	}
+}
+
+// Any event binds the tool session id, so a missing SessionStart forwarder
+// does not cost us the resume target.
+func TestToolSessionBoundWithoutSessionStart(t *testing.T) {
+	ts, _, ev := newTestServer(t, proto.ApprovalNotify)
+	post(t, ts.URL+"/hook/claude/7/UserPromptSubmit", "tok",
+		map[string]any{"session_id": "cs-42", "hook_event_name": "UserPromptSubmit", "prompt": "hi"})
+	ev.mu.Lock()
+	defer ev.mu.Unlock()
+	if ev.toolSess != "claude:cs-42" {
+		t.Fatalf("tool session: %q", ev.toolSess)
+	}
+}
+
+// The local approval dialog stays live while a remote_first hook blocks and
+// the first answer wins; when the local side answers, the turn ends and Stop
+// arrives while our handler is still parked. The approval must not survive it.
+func TestStopClosesApprovalDecidedLocally(t *testing.T) {
+	ts, s, ev := newTestServer(t, proto.ApprovalRemoteFirst)
+	done := make(chan []byte, 1)
+	go func() {
+		_, body := post(t, ts.URL+"/hook/claude/7/PermissionRequest", "tok", permReq)
+		done <- body
+	}()
+	waitFor(t, func() bool { return len(s.Store.Pending()) == 1 })
+
+	post(t, ts.URL+"/hook/claude/7/Stop", "tok", map[string]any{"hook_event_name": "Stop"})
+
+	select {
+	case body := <-done:
+		var out map[string]any
+		if err := json.Unmarshal(body, &out); err != nil {
+			t.Fatalf("hook answer %q: %v", body, err)
+		}
+		if _, ok := out["hookSpecificOutput"]; ok {
+			t.Fatalf("a locally decided request must not carry a decision: %s", body)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Stop did not release the blocked PermissionRequest handler")
+	}
+	if len(s.Store.Pending()) != 0 {
+		t.Fatalf("still pending after Stop: %v", s.Store.Pending())
+	}
+	ev.mu.Lock()
+	defer ev.mu.Unlock()
+	if len(ev.closed) != 1 || ev.closed[0] != ev.news[0].Key+":local:"+proto.ApprovalClosedLocal {
+		t.Fatalf("closed: %v", ev.closed)
+	}
+}
+
+func waitFor(t *testing.T, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if cond() {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("condition not met within 2s")
 }

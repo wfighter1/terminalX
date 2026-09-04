@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 
 	"github.com/wfighter1/terminalX/internal/proto"
 )
@@ -16,6 +18,14 @@ var ClaudeEvents = []string{
 	"SessionStart", "UserPromptSubmit", "PermissionRequest", "PostToolUse",
 	"Notification", "Stop", "StopFailure", "SessionEnd",
 }
+
+// CommandHookEvents are the events delivered by a command hook instead of an
+// http one. SessionStart is here because http hooks are silently skipped for
+// it: measured against Claude Code 2.1.260 on Linux, a settings file that
+// registers BOTH an http and a command hook for every event receives the
+// command hook for SessionStart and no http request at all, while every other
+// event arrives over both. See docs/04 §0.5.
+var CommandHookEvents = map[string]bool{"SessionStart": true}
 
 // ClaudeInput is the union of Claude hook input fields the agent reads.
 type ClaudeInput struct {
@@ -72,14 +82,21 @@ type ClaudeSettingsOptions struct {
 	// zero picks 3600. Every other hook uses NotifyTimeout (zero = 10).
 	RemoteFirstTimeout int
 	NotifyTimeout      int
+	// AgentExe is the absolute path of the tx-agent binary. Command hooks
+	// (SessionStart, statusLine) run `<AgentExe> hook …` so the machine
+	// needs no curl. When empty they fall back to curl / curl.exe.
+	AgentExe string
 }
 
 // ClaudeSettings renders the JSON document passed to `claude --settings`.
-// Hooks are http-type so no shell is involved (avoids the Windows
-// shell:powershell issues). The bearer token is referenced as $TX_HOOK_TOKEN
-// and interpolated by Claude from the process environment (allowedEnvVars);
-// the statusLine command is a shell command and therefore carries the token
-// literally.
+// Hooks are http-type wherever Claude actually delivers them, so no shell is
+// involved (this avoids the Windows shell:powershell issues); the bearer
+// token is referenced as $TX_HOOK_TOKEN and interpolated by Claude from the
+// process environment (allowedEnvVars). The two exceptions are statusLine,
+// which is command-only by definition, and SessionStart, which Claude never
+// delivers over http (CommandHookEvents); both are forwarded by
+// `tx-agent hook` and therefore carry the token literally in the command
+// string — the settings file is written 0600.
 func ClaudeSettings(o ClaudeSettingsOptions) map[string]any {
 	base := fmt.Sprintf("http://127.0.0.1:%d", o.Port)
 	hookFor := func(event string, timeout int) []map[string]any {
@@ -104,29 +121,69 @@ func ClaudeSettings(o ClaudeSettingsOptions) map[string]any {
 	}
 	hooks := map[string]any{}
 	for _, ev := range ClaudeEvents {
+		if CommandHookEvents[ev] {
+			hooks[ev] = []map[string]any{{"hooks": []map[string]any{{
+				"type":    "command",
+				"command": o.forwardCommand(ev),
+				"timeout": otherTimeout,
+			}}}}
+			continue
+		}
 		t := otherTimeout
 		if ev == "PermissionRequest" {
 			t = permTimeout
 		}
 		hooks[ev] = hookFor(ev, t)
 	}
-	curl := "curl"
-	if runtime.GOOS == "windows" {
-		curl = "curl.exe"
-	}
-	status := fmt.Sprintf("%s -s -X POST --data-binary @- %s/statusline/%d -H 'Authorization: Bearer %s'", curl, base, o.SID, o.Token)
-	if runtime.GOOS == "windows" {
-		// cmd.exe does not understand single quotes.
-		status = fmt.Sprintf("%s -s -X POST --data-binary @- %s/statusline/%d -H \"Authorization: Bearer %s\"", curl, base, o.SID, o.Token)
-	}
 	return map[string]any{
 		"hooks":               hooks,
 		"allowedHttpHookUrls": []string{base + "/hook/claude/*"},
 		"statusLine": map[string]any{
 			"type":    "command",
-			"command": status,
+			"command": o.forwardCommand("statusline"),
 		},
 	}
+}
+
+// forwardCommand renders the shell command that forwards a hook payload from
+// stdin to the local endpoint. It prefers `tx-agent hook` (no external
+// dependency, same binary that is already running) and falls back to curl.
+func (o ClaudeSettingsOptions) forwardCommand(event string) string {
+	sid := fmt.Sprint(o.SID)
+	if o.AgentExe != "" {
+		return shJoin(o.AgentExe, "hook", "--sid", sid,
+			"--port", strconv.Itoa(o.Port), "--token", o.Token, "--event", event)
+	}
+	url := fmt.Sprintf("http://127.0.0.1:%d/hook/claude/%s/%s", o.Port, sid, event)
+	if event == "statusline" {
+		url = fmt.Sprintf("http://127.0.0.1:%d/statusline/%s", o.Port, sid)
+	}
+	curl := "curl"
+	if runtime.GOOS == "windows" {
+		curl = "curl.exe"
+	}
+	return shJoin(curl, "-s", "-X", "POST", "--data-binary", "@-", url,
+		"-H", "Authorization: Bearer "+o.Token)
+}
+
+// shJoin quotes and joins argv for the shell that runs command hooks:
+// cmd.exe on Windows (no single quotes), /bin/sh elsewhere.
+func shJoin(argv ...string) string {
+	out := make([]string, 0, len(argv))
+	for _, a := range argv {
+		out = append(out, shQuote(a))
+	}
+	return strings.Join(out, " ")
+}
+
+func shQuote(s string) string {
+	if s != "" && !strings.ContainsAny(s, " \t\"'`$&|;<>()[]{}*?!\\#~^%,\n") {
+		return s
+	}
+	if runtime.GOOS == "windows" {
+		return `"` + strings.ReplaceAll(s, `"`, `\"`) + `"`
+	}
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 // WriteClaudeSettings writes the settings file for a session under

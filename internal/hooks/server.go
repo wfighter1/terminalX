@@ -186,11 +186,15 @@ func (s *Server) handleClaude(w http.ResponseWriter, r *http.Request) {
 	}
 	log := s.Log.With("sid", sid, "event", in.HookEventName)
 	ev := s.Events
+	// Every Claude hook payload carries session_id, so the tool session is
+	// bound from whichever event arrives first. This matters because
+	// SessionStart is delivered as a command hook: if the forwarder is
+	// missing, resume still works from the first prompt onwards.
+	if in.SessionID != "" {
+		ev.ToolSession(sid, proto.ToolClaude, in.SessionID)
+	}
 	switch in.HookEventName {
 	case "SessionStart":
-		if in.SessionID != "" {
-			ev.ToolSession(sid, proto.ToolClaude, in.SessionID)
-		}
 		ev.SessionState(sid, proto.StateRunning, "", proto.SourceHook, proto.ConfidenceHigh)
 		writeJSON(w, map[string]any{})
 	case "UserPromptSubmit":
@@ -209,10 +213,17 @@ func (s *Server) handleClaude(w http.ResponseWriter, r *http.Request) {
 		s.notification(sid, mode, in)
 		writeJSON(w, map[string]any{})
 	case "Stop":
+		// The turn cannot end while a permission is genuinely outstanding,
+		// so anything still pending here was decided in the terminal (the
+		// local dialog stays live while our hook blocks and the first
+		// answer wins) or the turn was interrupted. Close it so the
+		// console does not keep showing a phantom approval.
+		s.closeStale(sid)
 		ev.SessionState(sid, proto.StateIdle, "", proto.SourceHook, proto.ConfidenceHigh)
 		writeJSON(w, map[string]any{})
 	case "StopFailure":
 		log.Warn("claude stop failure", "error_type", in.ErrorType, "message", in.ErrorMessage)
+		s.closeStale(sid)
 		ev.SessionState(sid, proto.StateFailed, "", proto.SourceHook, proto.ConfidenceHigh)
 		writeJSON(w, map[string]any{})
 	case "SessionEnd":
@@ -225,6 +236,14 @@ func (s *Server) handleClaude(w http.ResponseWriter, r *http.Request) {
 	default:
 		log.Debug("claude hook: unhandled event")
 		writeJSON(w, map[string]any{})
+	}
+}
+
+// closeStale closes every approval of a session that is still pending,
+// waking a blocked level-A handler with "no decision".
+func (s *Server) closeStale(sid uint32) {
+	for _, a := range s.Store.CloseSession(sid, proto.ApprovalClosedLocal, "local") {
+		s.Events.ApprovalClosed(a, "local")
 	}
 }
 
